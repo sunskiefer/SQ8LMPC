@@ -1,0 +1,532 @@
+<title>KutilXXL Panel Editor</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Titillium+Web:wght@400;600;700&display=swap">
+<style>
+/* Layout: a toolbar over a 1280-wide page stage that scales to the window, with an inspector underneath.
+   Treatment: the plugin's own dark panel look, one orange accent (the plugin's tab colour). */
+:root {
+  --bg: #161616;
+  --panel: #1f1f1f;
+  --line: #333230;
+  --fg: #ece8e2;
+  --dim: #9a948a;
+  --accent: #f07a1e;
+  --bad: #e24b4a;
+  --ok: #4fb286;
+  --ui: "Titillium Web", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--ui); font-size: 15px; margin: 0; padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)); padding-block: 14px 40px; }
+h1 { font-size: 22px; margin: 0; font-weight: 700; letter-spacing: .02em; }
+.top { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-bottom: 10px; }
+.top p { margin: 0; color: var(--dim); font-size: 14px; flex: 1 1 320px; min-width: 0; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+button, select, input, textarea { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 6px 12px; }
+button { cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+button.on { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 700; }
+.sp { flex: 1; }
+#wrap { width: 100%; overflow: hidden; border: 1px solid var(--line); background: #0d0d0d; position: relative; }
+#stage { position: absolute; left: 0; top: 0; width: 1280px; height: 628px; transform-origin: 0 0; background: #101010 url(__BACKG__) 0 0 / 1280px 628px no-repeat; }
+#hdr { position: absolute; left: 0; top: 0; width: 1280px; height: 70px; background: #191919; border-bottom: 1px solid var(--line); color: var(--dim); font-size: 22px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; pointer-events: none; }
+.item { position: absolute; border: 1px solid rgba(120,120,120,.25); background: transparent; cursor: grab; touch-action: none; user-select: none; }
+.item img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; }
+.item.sel { outline: 3px solid var(--accent); z-index: 5; }
+.item.bad { outline: 3px solid var(--bad); }
+.item .kn { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; pointer-events: none; }
+.item .kn img { width: 100%; height: 100%; object-fit: contain; }
+.cbtn { position:absolute; left:50%; top:50%; width:72%; aspect-ratio:1; max-height:90%; transform:translate(-50%,-50%); border-radius:50%; background: radial-gradient(circle at 40% 35%, #3a3a3a, #111 70%); border: 3px solid #8a7a5a; pointer-events:none; }
+.csw { position:absolute; left:50%; top:50%; width:46%; height:80%; transform:translate(-50%,-50%); border-radius:12px; background:#0a0a0a; border:3px solid #8a7a5a; pointer-events:none; }
+.csw::after { content:""; position:absolute; left:20%; right:20%; top:10%; height:38%; border-radius:6px; background:#d8d2c6; }
+.ftrk { position:absolute; background:#050505; border:2px solid #555; border-radius:6px; pointer-events:none; }
+.fcap { position:absolute; background:#d8d2c6; border:2px solid #111; border-radius:3px; pointer-events:none; }
+#addbox { margin:8px 0; padding:10px; background: var(--panel); border:1px solid var(--line); border-radius:6px; }
+.item.lab { border: 1px dashed rgba(160,140,100,.35); background: transparent; display: flex; align-items: center; justify-content: center; text-align: center; font-family: var(--ui); font-weight: 600; line-height: 1.02; color: var(--fg); overflow: hidden; }
+.item.lab .h { display: none; }
+.item.lab.sel .h { display: block; }
+.item .lbl { position: absolute; left: 0; right: 0; bottom: 3%; text-align: center; font: 600 15px/1.05 var(--ui); color: var(--fg); pointer-events: none; padding: 0 2px; }
+.styles { display: inline-flex; gap: 6px; align-items: center; }
+.styles button { padding: 2px; width: 44px; height: 44px; display: grid; place-items: center; }
+.styles button img { width: 36px; height: 36px; }
+.styles button.on { background: var(--accent); }
+.item .tag { position: absolute; left: 0; top: -22px; background: var(--accent); color: #111; font: 500 14px var(--mono); padding: 1px 6px; white-space: nowrap; display: none; }
+.item.sel .tag { display: none; }
+.h { position: absolute; right: -2px; bottom: -2px; width: 22px; height: 22px; background: var(--accent); cursor: nwse-resize; touch-action: none; }
+.item:not(.sel) .h, .group:not(.sel) .h { display: none; }
+.group { position: absolute; border: 1px dashed transparent; background: none; cursor: grab; touch-action: none; user-select: none; }
+.group.sel { border-color: var(--dim); background: rgba(255,255,255,.06); z-index: 5; }
+.group .gt { position: absolute; left: 6px; top: 2px; font: 600 15px var(--ui); color: var(--fg); pointer-events: none; }
+.dots { position: absolute; left: 6px; right: 6px; bottom: 6px; top: 24px; display: grid; gap: 3px; pointer-events: none; }
+.dot { display:flex; flex-direction:column; align-items:center; min-width:0; overflow:visible; }
+.dot i { flex:1; width:100%; min-height:0; background: center / contain no-repeat; border-radius:50%; }
+.dot.fixed i { flex:none; }
+.dot b { font: 600 13px var(--ui); position:relative; z-index:2; color:#ece8e2; line-height:1.1; text-align:center; white-space:nowrap; max-width:100%; overflow:hidden; text-overflow:clip; }
+.dot b { pointer-events:auto; cursor:move; overflow:visible !important; touch-action:none; }
+.dot i.sel { outline:2px solid var(--accent); background-color:rgba(240,122,30,.25); }
+.dot b.sel { outline:2px solid var(--accent); background:rgba(240,122,30,.25); }
+.dot b { position:relative; }
+.dot b .rh { display:none; position:absolute; right:-6px; bottom:-6px; width:12px; height:12px; background:var(--accent); border-radius:2px; cursor:nwse-resize; }
+.dot b.sel .rh { display:block; }
+.dot b:hover { outline:1px dashed var(--dim); }
+.dot.out b { color: #d9b45a; }
+#insp { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px 12px; align-items: end; margin: 12px 0; padding: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+#insp label { display: grid; gap: 3px; font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; min-width: 0; }
+#insp input { font-family: var(--mono); width: 100%; min-width: 0; }
+#insp .name { grid-column: 1 / -1; font-size: 17px; font-weight: 600; }
+#insp .name small { color: var(--dim); font-weight: 400; margin-left: 8px; }
+#orig { margin: 12px 0; }
+#msg { color: var(--dim); font-size: 14px; min-height: 20px; }
+#msg.bad { color: var(--bad); }
+details { margin-top: 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); padding: 8px 12px; }
+summary { cursor: pointer; font-weight: 600; }
+textarea { width: 100%; min-height: 180px; font: 12px/1.4 var(--mono); margin-top: 8px; }
+.legend { color: var(--dim); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 6px; }
+</style>
+
+<div class="top">
+  <h1>KutilXXL Panel Editor <small style="font-size:14px;color:var(--accent)">v27 · CRUST21 = two separate panels, A and B</small></h1>
+  <p>Drag a control to move it, drag the orange corner to resize it, or type exact numbers below. The three pages are the plugin's three screens. The module jack groups sit at the bottom: touching one opens that module's jack window. Drag any jack's text to move it away from its jack (double-click the text to put it back). Select a text and drag its orange corner to resize the box; a narrow box wraps the name onto two lines.</p>
+</div>
+
+<div class="bar" id="tabs"></div>
+<div class="bar">
+  <label>Snap <select id="snap"><option value="1">off</option><option value="2">2 px</option><option value="4">4 px</option><option value="8" selected>8 px</option></select></label>
+  <button id="bAspect" class="on" title="Keep the tile's shape when resizing">Keep shape</button>
+  <button id="bBig">Size +10%</button>
+  <button id="bSmall">Size −10%</button>
+  <button id="bAll" title="Ctrl+A">Select all</button>
+  <button id="bKnobs">Select all knobs</button>
+  <button id="bLabels">Select all labels</button>
+  <button id="bNone" title="Esc">Clear</button>
+  <button id="bDef">Reset selected</button>
+  <span class="styles" id="allStyles"><span>All knobs:</span></span>
+  <span class="sp"></span>
+  <button id="bPage">Reset this page</button>
+  <button id="bOrig" title="Show your original module panels for this page">Original panels</button>
+  <span style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap"><strong style="font-size:13px;color:var(--dim)">ALIGN</strong><button id="bAlignRow" title="Put all selected on the same row (same height), lined up to the control you clicked last">Same row</button><button id="bAlignCol" title="Put all selected in the same column, lined up to the control you clicked last">Same column</button><select id="alignBy" title="Which edge or centre to line up"><option value="c">centres</option><option value="s">left / top edges</option><option value="e">right / bottom edges</option></select></span>
+  <button id="bAddText" title="Add a free text to this page (any words, any place)">+ Add text</button>
+  <button id="bAdd" title="Add a knob, fader, button or switch to this page">+ Add control</button>
+  <button id="bReal" title="The real Bastl module front photos, straight from bastl-instruments.com">Real modules</button>
+  <button id="bExp">Export layout</button>
+</div>
+
+<div id="wrap"><div id="stage"></div></div>
+<div class="legend"><span>Ctrl-click adds or removes one · drag a box on the empty page to select several · Ctrl+A selects all · arrows nudge 1 px (Shift: 10)</span><span>Red outline: overlaps another control or leaves the page</span><span id="count"></span></div>
+
+<div id="real" hidden><div class="bar"><strong>Real Bastl modules, front view (bastl-instruments.com)</strong><span class="sp"></span><button id="bRealX">Close</button></div><div id="realRow" style="display:flex;gap:14px;align-items:flex-end;overflow-x:auto;background:#fff;padding:12px;border:1px solid var(--line)"></div></div>
+<div id="orig" hidden><div class="bar"><strong id="origT"></strong><span class="sp"></span><button id="bOrigX">Close</button></div><img id="origImg" alt="Original module panels for this page" style="width:100%;height:auto;display:block;border:1px solid var(--line)"></div>
+
+<div id="addbox" hidden><div class="bar"><strong>Add a control to this page</strong><select id="addType"><option value="k">Knob</option><option value="v">Fader</option><option value="b">Button</option><option value="s">Switch</option></select><select id="addMod"></select><input id="addName" type="text" placeholder="name, e.g. LEVEL" style="width:200px"><button id="bAddGo">Add</button><button id="bAddX">Close</button></div></div>
+<div id="insp"></div>
+<div id="msg"></div>
+
+<details id="exp">
+  <summary>Layout file (copy this and send it back)</summary>
+  <div class="bar"><button id="bCopy">Copy</button><button id="bLoad">Load pasted layout</button></div>
+  <textarea id="txt" spellcheck="false"></textarea>
+</details>
+
+<script>
+const DEFAULT = __LAYOUT__;
+const TILES = __TILES__;
+const KNOBS = __KNOBS__;
+const ORIG = __ORIG__;
+const ISKNOB = k => k === 'k' || k === 'n';
+const HDR = 70, KEY = "kutilxxl-panel-layout-v2";
+const TYPE_FIX = { pizza1_octave: "k", pizza1_fm_index_sl: "v", pizza1_shape_sl: "v", basil1_dry_wet: "v", basil1_space: "v" };
+function fixType(it) {
+  if (ISKNOB(it.kind)) return;
+  if (TYPE_FIX[it.id]) it.kind = TYPE_FIX[it.id];
+  else if (/_(cvgate|rnd_cv|tiv_gate)$/.test(it.id)) it.kind = "s";
+  else it.kind = "b";
+  if (it.kind === "k" && !it.knob) it.knob = "a";
+}
+function ensureLabels(X) {
+  X.pages.forEach(p => {
+    p.labels = p.labels || [];
+    p.items.forEach(it => {
+      if (!X.typed) fixType(it);
+      if (p.labels.some(l => l.id === it.id)) return;
+      const oh = it.h, kd = it.kind === "v" ? Math.max(40, it.h - 46) : (it.kind === "n" || it.kind === "k" ? it.w : it.w);
+      p.labels.push({ id: it.id, mod: it.mod, role: it.role, text: it.label || it.role.replace(/_/g, " "), x: it.x, y: it.y + kd, w: it.w, h: Math.max(36, oh - kd) });
+      it.h = kd;
+    });
+  });
+  X.typed = true;
+}
+function splitCrust(X) {
+  X.pages.forEach(p => {
+    const gi = p.groups.findIndex(g => g.mod === "CRUST21"); if (gi < 0) return;
+    const g = p.groups[gi], mk = (side, x, w) => {
+      const idx = [...Array(g.njacks).keys()].filter(i => String((g.jacks[i] || {}).n || "").startsWith(side + " "));
+      idx.sort((a, b) => (g.jacks[a].o ? 1 : 0) - (g.jacks[b].o ? 1 : 0) || a - b);
+      const q = Object.assign({}, g, { mod: "CRUST21 " + side, module: "CRUST21", side, title: "CRUST21 " + side, x, w, njacks: idx.length, jacks: idx.map(i => Object.assign({}, g.jacks[i], { src: i })) });
+      return q;
+    };
+    const w = Math.floor((g.w - 8) / 2);
+    p.groups.splice(gi, 1, mk("A", g.x, w), mk("B", g.x + w + 8, w));
+  });
+}
+function restoreCrust(X) {
+  X.pages.forEach((p, pi) => p.groups.forEach(g => {
+    if (!/^CRUST21 [AB]$/.test(g.mod)) return;
+    const d = DEFAULT.pages[pi] && DEFAULT.pages[pi].groups.find(q => q.mod === g.mod); if (!d) return;
+    const have = new Set(g.jacks.map(j => j.src)); let add = false;
+    d.jacks.forEach(j => { if (!have.has(j.src)) { g.jacks.push(Object.assign({}, j)); add = true; } });
+    if (add) { g.jacks.sort((a, b) => (a.o ? 1 : 0) - (b.o ? 1 : 0) || a.src - b.src); g.njacks = g.jacks.length; }
+  }));
+}
+splitCrust(DEFAULT);
+ensureLabels(DEFAULT);
+let L = JSON.parse(JSON.stringify(DEFAULT));
+try { const s = localStorage.getItem(KEY); if (s) { const o = JSON.parse(s); if (o && o.pages && o.pages.length === DEFAULT.pages.length) { L = o; splitCrust(L); restoreCrust(L); ensureLabels(L); } } } catch (e) {}
+let page = 0, sel = null, snapV = 8, keepShape = true, scale = 1;
+const $ = id => document.getElementById(id);
+const stage = $("stage"), wrap = $("wrap");
+
+function save() { try { localStorage.setItem(KEY, JSON.stringify(L)); } catch (e) {} }
+function say(t, bad) { const m = $("msg"); m.textContent = t || ""; m.className = bad ? "bad" : ""; }
+function snap(v) { return Math.round(v / snapV) * snapV; }
+function defItem(id) { for (const p of DEFAULT.pages) for (const it of p.items) if (it.id === id) return it; }
+function defLabel(id) { for (const p of DEFAULT.pages) for (const it of p.labels) if (it.id === id) return it; }
+function defGroup(mod) { for (const p of DEFAULT.pages) for (const g of p.groups) if (g.mod === mod) return g; }
+
+function showOrig() {
+  const o = $("orig");
+  if (o.hidden) return;
+  $("origImg").src = ORIG[page];
+  $("origT").textContent = "Your original panels, page " + (page + 1) + " (" + L.pages[page].modules.map(m => m.name).join(" · ") + ")";
+}
+function fit() {
+  scale = Math.min(1, wrap.clientWidth / 1280);
+  stage.style.transform = "scale(" + scale + ")";
+  wrap.style.height = Math.ceil(628 * scale) + "px";
+}
+
+function overlaps(P) {
+  const bad = new Set(), A = P.items;
+  for (let i = 0; i < A.length; i++) {
+    const a = A[i];
+    if (a.x < 0 || a.y < 0 || a.x + a.w > 1280 || a.y + a.h > 558) bad.add(a.id);
+    for (let j = i + 1; j < A.length; j++) {
+      const b = A[j];
+      if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) { bad.add(a.id); bad.add(b.id); }
+    }
+    for (const g of P.groups) if (a.x < g.x + g.w && g.x < a.x + a.w && a.y < g.y + g.h && g.y < a.y + a.h) bad.add(a.id);
+  }
+  return bad;
+}
+
+function placeJacks(g) {
+  const n = g.njacks, rows = g.h > 120 ? 3 : 2, cols = Math.ceil(n / rows), place = {};
+  if (!isSplit(g)) { for (let i = 0; i < n; i++) place[i] = [Math.floor(i / cols) + 1, (i % cols) + 1]; return { place, rows, cols, split: false }; }
+  const nm = i => String((g.jacks || [])[i] ? g.jacks[i].n : ""), ab = [...Array(n).keys()].every(i => /^[AB] /.test(nm(i)));
+  const side = i => ab ? (nm(i)[0] === "B" ? 1 : 0) : (i >= Math.ceil(n / 2) ? 1 : 0);
+  const L0 = [], R0 = []; for (let i = 0; i < n; i++) (side(i) ? R0 : L0).push(i);
+  const srt = a => a.sort((x, y) => (((g.jacks || [])[x] || {}).o ? 1 : 0) - (((g.jacks || [])[y] || {}).o ? 1 : 0) || x - y);
+  srt(L0); srt(R0);
+  const c2 = Math.ceil(Math.max(L0.length, R0.length) / rows);
+  L0.forEach((i, k) => { place[i] = [Math.floor(k / c2) + 1, (k % c2) + 1]; });
+  R0.forEach((i, k) => { place[i] = [Math.floor(k / c2) + 1, c2 + 1 + (k % c2) + 1]; });
+  return { place, rows, cols: c2 * 2 + 1, c2, split: true };
+}
+function isSplit(g) { return !!g.split; }
+function drawDots(g, el, gi) {
+  const n = g.njacks, rows = g.h > 120 ? 3 : 2, cols = Math.ceil(n / rows);
+  const d = el.querySelector(".dots");
+  d.style.gridTemplateColumns = "repeat(" + cols + ", 1fr)";
+  d.style.gridTemplateRows = "repeat(" + rows + ", 1fr)";
+  d.innerHTML = "";
+  const fs = g.fs || 14, js = g.js || 0;
+  const GP = placeJacks(g), place = GP.place; if (GP.split) d.style.gridTemplateColumns = "repeat(" + GP.c2 + ", 1fr) 28px repeat(" + GP.c2 + ", 1fr)";
+  for (let i = 0; i < n; i++) { const e = document.createElement("div"); e.className = "dot" + (js ? " fixed" : ""); const jk = (g.jacks || [])[i]; e.innerHTML = '<i style="background-image:url(' + TILES._jack + ')"></i><b>' + (jk ? (jk.o ? "" : "") + jk.n : "") + '</b>'; const tb = e.querySelector("b"); tb.style.fontSize = fs + "px"; if (jk) { tb.style.transform = "translate(" + (jk.tx || 0) + "px," + (jk.ty || 0) + "px)"; if (jk.tw) { tb.style.width = jk.tw + "px"; tb.style.maxWidth = "none"; tb.style.whiteSpace = "normal"; tb.style.overflowWrap = "anywhere"; tb.style.flex = "none"; } if (jk.th) { tb.style.height = jk.th + "px"; tb.style.flex = "none"; } const rh = document.createElement("span"); rh.className = "rh"; tb.appendChild(rh); rh.addEventListener("pointerdown", ev => { ev.preventDefault(); ev.stopPropagation(); const r0 = tb.getBoundingClientRect(), w0 = r0.width / scale, h0 = r0.height / scale, sx = ev.clientX, sy = ev.clientY; rh.setPointerCapture(ev.pointerId); const mv = m => { jk.tw = Math.max(20, Math.round(w0 + (m.clientX - sx) / scale)); jk.th = Math.max(12, Math.round(h0 + (m.clientY - sy) / scale)); tb.style.width = jk.tw + "px"; tb.style.height = jk.th + "px"; tb.style.maxWidth = "none"; tb.style.whiteSpace = "normal"; tb.style.overflowWrap = "anywhere"; tb.style.flex = "none"; }; const up = () => { rh.removeEventListener("pointermove", mv); rh.removeEventListener("pointerup", up); save(); render(); inspector(); }; rh.addEventListener("pointermove", mv); rh.addEventListener("pointerup", up); }); const jkey = "j:" + (gi * 100 + i); tb.dataset.k = jkey; if (multi.has(jkey)) tb.classList.add("sel"); tb.addEventListener("pointerdown", ev => { ev.preventDefault(); ev.stopPropagation(); const add = ev.ctrlKey || ev.metaKey || ev.shiftKey; const jt = jkey.split(":"); if (add) { if (multi.has(jkey)) { multi.delete(jkey); if (sel && sel.t === "j" && sel.i === gi * 100 + i) sel = null; } else { multi.add(jkey); sel = { t: "j", i: gi * 100 + i }; } } else if (!multi.has(jkey)) { multi.clear(); multi.add(jkey); sel = { t: "j", i: gi * 100 + i }; } else sel = { t: "j", i: gi * 100 + i }; stage.querySelectorAll("[data-k]").forEach(el => el.classList.toggle("sel", multi.has(el.dataset.k))); inspector(); if (add && !multi.has(jkey)) return; const sx = ev.clientX, sy = ev.clientY, S = selected(), st = S.map(x => x.t === "j" ? [x.o.jk.tx || 0, x.o.jk.ty || 0] : x.t === "m" ? [x.o.jk.mx || 0, x.o.jk.my || 0] : [x.o.x, x.o.y]); tb.setPointerCapture(ev.pointerId); let moved = false; const mv = m => { const dx = Math.round((m.clientX - sx) / scale), dy = Math.round((m.clientY - sy) / scale); if (dx || dy) moved = true; S.forEach((x, n) => { if (x.t === "m") { x.o.jk.mx = st[n][0] + dx; x.o.jk.my = st[n][1] + dy; const el = stage.querySelector('[data-k="' + keyOf(x.t, x.i) + '"]'); if (el) el.style.transform = "translate(" + x.o.jk.mx + "px," + x.o.jk.my + "px)"; } else if (x.t === "j") { x.o.jk.tx = st[n][0] + dx; x.o.jk.ty = st[n][1] + dy; const el = stage.querySelector('[data-k="' + keyOf(x.t, x.i) + '"]'); if (el) el.style.transform = "translate(" + x.o.jk.tx + "px," + x.o.jk.ty + "px)"; } else { x.o.x = st[n][0] + dx; x.o.y = st[n][1] + dy; const el = stage.querySelector('[data-k="' + keyOf(x.t, x.i) + '"]'); if (el) { el.style.left = x.o.x + "px"; el.style.top = (x.o.y + HDR) + "px"; } } }); }; const up = () => { tb.removeEventListener("pointermove", mv); tb.removeEventListener("pointerup", up); if (moved) save(); render(); inspector(); }; tb.addEventListener("pointermove", mv); tb.addEventListener("pointerup", up); }); const ic0 = e.querySelector("i"); const ic = ic0; ic.style.transform = "translate(" + (jk.mx || 0) + "px," + (jk.my || 0) + "px)"; ic.style.pointerEvents = "auto"; ic.style.cursor = "move"; ic.style.touchAction = "none"; const mkey = "m:" + (gi * 100 + i); ic.dataset.k = mkey; if (multi.has(mkey)) ic.classList.add("sel"); ic.addEventListener("pointerdown", ev => { ev.preventDefault(); ev.stopPropagation(); const add = ev.ctrlKey || ev.metaKey || ev.shiftKey; const jt = mkey.split(":"); if (add) { if (multi.has(mkey)) { multi.delete(mkey); if (sel && sel.t === "m" && sel.i === gi * 100 + i) sel = null; } else { multi.add(mkey); sel = { t: "m", i: gi * 100 + i }; } } else if (!multi.has(mkey)) { multi.clear(); multi.add(mkey); sel = { t: "m", i: gi * 100 + i }; } else sel = { t: "m", i: gi * 100 + i }; stage.querySelectorAll("[data-k]").forEach(el => el.classList.toggle("sel", multi.has(el.dataset.k))); inspector(); if (add && !multi.has(mkey)) return; const sx = ev.clientX, sy = ev.clientY, S = selected(), st = S.map(x => x.t === "j" ? [x.o.jk.tx || 0, x.o.jk.ty || 0] : x.t === "m" ? [x.o.jk.mx || 0, x.o.jk.my || 0] : [x.o.x, x.o.y]); ic.setPointerCapture(ev.pointerId); let moved = false; const mv = m => { const dx = Math.round((m.clientX - sx) / scale), dy = Math.round((m.clientY - sy) / scale); if (dx || dy) moved = true; S.forEach((x, n) => { if (x.t === "m") { x.o.jk.mx = st[n][0] + dx; x.o.jk.my = st[n][1] + dy; const el = stage.querySelector('[data-k="' + keyOf(x.t, x.i) + '"]'); if (el) el.style.transform = "translate(" + x.o.jk.mx + "px," + x.o.jk.my + "px)"; } else if (x.t === "j") { x.o.jk.tx = st[n][0] + dx; x.o.jk.ty = st[n][1] + dy; const el = stage.querySelector('[data-k="' + keyOf(x.t, x.i) + '"]'); if (el) el.style.transform = "translate(" + x.o.jk.tx + "px," + x.o.jk.ty + "px)"; } else { x.o.x = st[n][0] + dx; x.o.y = st[n][1] + dy; const el = stage.querySelector('[data-k="' + keyOf(x.t, x.i) + '"]'); if (el) { el.style.left = x.o.x + "px"; el.style.top = (x.o.y + HDR) + "px"; } } }); }; const up = () => { ic.removeEventListener("pointermove", mv); ic.removeEventListener("pointerup", up); if (moved) save(); render(); inspector(); }; ic.addEventListener("pointermove", mv); ic.addEventListener("pointerup", up); }); ic.ondblclick = ev => { jk.mx = 0; jk.my = 0; save(); render(); }; tb.ondblclick = ev => { jk.tx = 0; jk.ty = 0; jk.tw = 0; jk.th = 0; save(); render(); }; } if (js) { const ic = e.querySelector("i"); ic.style.width = js + "px"; ic.style.height = js + "px"; } if (jk && jk.o) e.classList.add("out"); if (place[i]) { e.style.gridRow = place[i][0]; e.style.gridColumn = place[i][1]; } d.appendChild(e); }
+}
+
+function ctlBody(it) {
+  if (ISKNOB(it.kind)) return '<div class="kn"><img alt="" src="' + KNOBS[it.knob || "a"] + '"></div>';
+  if (it.kind === "b") return '<div class="cbtn"></div>';
+  if (it.kind === "s") return '<div class="csw"></div>';
+  if (it.w >= it.h) return '<div class="ftrk" style="left:5%;right:5%;top:calc(50% - 6px);height:12px"></div><div class="fcap" style="left:42%;width:16%;top:18%;height:64%"></div>';
+  return '<div class="ftrk" style="top:5%;bottom:5%;left:calc(50% - 6px);width:12px"></div><div class="fcap" style="top:42%;height:16%;left:18%;width:64%"></div>';
+}
+const KIND_NAME = { k: "knob", n: "knob", v: "fader", b: "button", s: "switch" };
+function render() {
+  const P = L.pages[page];
+  stage.innerHTML = '<div id="hdr"><span>&lt; &nbsp; PAGE ' + (page + 1) + ' &nbsp; &gt;</span><span>OVERVIEW &nbsp; · &nbsp; patch readout</span></div>';
+  const bad = overlaps(P);
+  P.groups.forEach((g, i) => {
+    const e = document.createElement("div");
+    e.className = "group" + (multi.has(keyOf("g", i)) ? " sel" : ""); e.dataset.k = keyOf("g", i);
+    e.style.cssText = "left:" + g.x + "px;top:" + (g.y + HDR) + "px;width:" + g.w + "px;height:" + g.h + "px";
+    e.innerHTML = '<div class="gt" style="font-size:' + (g.ts || 15) + 'px">' + (g.title || g.mod) + '</div><div class="dots"></div><div class="h"></div>';
+    drawDots(g, e, i);
+    wire(e, "g", i);
+    stage.appendChild(e);
+  });
+  P.items.forEach((it, i) => {
+    const e = document.createElement("div");
+    e.className = "item" + (multi.has(keyOf("i", i)) ? " sel" : "") + (bad.has(it.id) ? " bad" : ""); e.dataset.k = keyOf("i", i);
+    e.style.cssText = "left:" + it.x + "px;top:" + (it.y + HDR) + "px;width:" + it.w + "px;height:" + it.h + "px";
+    const body = ctlBody(it);
+    e.innerHTML = body + '<div class="tag">' + it.mod + " " + it.role + '</div><div class="h"></div>';
+    wire(e, "i", i);
+    stage.appendChild(e);
+  });
+  P.labels.forEach((lb, i) => {
+    const e = document.createElement("div");
+    e.className = "item lab" + (multi.has(keyOf("l", i)) ? " sel" : ""); e.dataset.k = keyOf("l", i);
+    const lines = String(lb.text).split(" "), mx = Math.max(...lines.map(x => x.length));
+    const fs = lb.fs || Math.max(10, Math.min(24, Math.floor(lb.h / lines.length * 0.9), Math.floor(lb.w / (mx * 0.62))));
+    e.style.cssText = "left:" + lb.x + "px;top:" + (lb.y + HDR) + "px;width:" + lb.w + "px;height:" + lb.h + "px;font-size:" + fs + "px";
+    e.innerHTML = lines.join("<br>") + '<div class="h"></div>';
+    wire(e, "l", i);
+    stage.appendChild(e);
+  });
+  $("count").textContent = P.items.length + " controls, " + P.labels.length + " labels, " + P.groups.length + " jack groups" + (bad.size ? ", " + bad.size + " to check" : "");
+  inspector();
+  const tabs = $("tabs");
+  tabs.innerHTML = "";
+  L.pages.forEach((p, i) => {
+    const b = document.createElement("button");
+    b.textContent = "Page " + (i + 1) + " · " + p.modules.map(m => m.type[0] + m.type.slice(1).toLowerCase()).join(" · ");
+    b.className = i === page ? "on" : "";
+    b.onclick = () => { page = i; setSel([]); render(); showOrig(); };
+    tabs.appendChild(b);
+  });
+}
+
+function styleButtons(host, active, cb) {
+  host.innerHTML = host.id === "allStyles" ? "<span>All knobs:</span>" : "";
+  ["a", "b", "c", "d"].forEach(v => {
+    const b = document.createElement("button");
+    b.title = "Knob style " + v.toUpperCase(); b.className = v === active ? "on" : "";
+    b.innerHTML = '<img alt="Knob ' + v.toUpperCase() + '" src="' + KNOBS[v] + '">';
+    b.onclick = () => cb(v); host.appendChild(b);
+  });
+}
+const multi = new Set();
+const keyOf = (t, i) => t + ":" + i;
+function jproxy(code, kind) {
+  kind = kind || "j"; const fx = kind === "m" ? "mx" : "tx", fy = kind === "m" ? "my" : "ty";
+  const P = L.pages[page], g = P.groups[Math.floor(code / 100)]; if (!g) return null; const jk = (g.jacks || [])[code % 100]; if (!jk) return null;
+  const el = stage.querySelector('[data-k="' + kind + ':' + code + '"]'); const sr = stage.getBoundingClientRect();
+  const r = () => { const e = el && el.getBoundingClientRect(); return e ? { x: (e.left - sr.left) / scale, y: (e.top - sr.top) / scale - HDR, w: e.width / scale, h: e.height / scale } : { x: 0, y: 0, w: 0, h: 0 }; };
+  const base = r();
+  return { jk, mod: g.mod, role: (kind === "m" ? "jack icon " : "jack text ") + jk.n, kind,
+    get x() { return r().x; }, set x(v) { jk[fx] = (jk[fx] || 0) + Math.round(v - r().x); },
+    get y() { return r().y; }, set y(v) { jk[fy] = (jk[fy] || 0) + Math.round(v - r().y); },
+    get w() { return r().w; }, set w(v) { if (kind === "j") jk.tw = Math.max(20, Math.round(v)); }, get h() { return r().h; }, set h(v) { if (kind === "j") jk.th = Math.max(12, Math.round(v)); } };
+}
+function objOf(k) { const [t, i] = k.split(":"); const P = L.pages[page]; if (t === "j" || t === "m") return { t, i: +i, o: jproxy(+i, t) }; return { t, i: +i, o: t === "g" ? P.groups[+i] : t === "l" ? P.labels[+i] : P.items[+i] }; }
+function selected() { return [...multi].map(objOf).filter(x => x.o); }
+function cur() { if (!sel) return null; return objOf(keyOf(sel.t, sel.i)).o; }
+function setSel(list, primary) { multi.clear(); list.forEach(x => multi.add(keyOf(x.t, x.i))); sel = primary || (list.length ? list[list.length - 1] : null); }
+
+function inspector() {
+  const box = $("insp"), S = selected();
+  if (!S.length) { box.innerHTML = '<div class="name">Nothing selected <small>click a control, Ctrl-click to add more, or drag a box around several</small></div>'; return; }
+  const o = (S.find(x => sel && x.t === sel.t && x.i === sel.i) || S[0]).o, one = S.length === 1, p = S.find(x => x.o === o);
+  const kn = S.filter(x => x.t === "i" && ISKNOB(x.o.kind));
+  let title;
+  if (one) title = p.t === "g" ? o.mod + " jack group" : o.mod + " · " + o.role.replace(/_/g, " ") + (p.t === "l" ? " · LABEL" : "");
+  else title = S.length + " selected";
+  const sub = one ? (p.t === "g" ? o.njacks + " jacks" : p.t === "l" ? "text label, live text, moves apart from its knob" : KIND_NAME[o.kind]) : (kn.length ? kn.length + " knobs · x,y moves them together · w,h sets all to that size" : "x,y moves them together · w,h sets all to that size");
+  box.innerHTML = '<div class="name">' + title + "<small>" + sub + "</small></div>" +
+    ["x", "y", "w", "h"].map(k => '<label>' + k + '<input id="f_' + k + '" type="number" step="1" value="' + Math.round(o[k]) + '"></label>').join("") +
+    (S.some(x => x.t === "g") ? '<button id="bJReset" style="grid-column:1/-1">Reset all jacks of this module (icon and text position, box size)</button>' : "") + (S.some(x => x.t === "g") ? '<label>two sides (A left, B right)<input id="f_split" type="checkbox"' + (isSplit(S.find(x => x.t === "g").o) ? " checked" : "") + '></label>' : "") + (S.some(x => x.t === "g") ? '<label>jack text px<input id="f_fs" type="number" step="1" min="8" value="' + (S.find(x => x.t === "g").o.fs || 14) + '"></label><label>jack size px (0 = auto)<input id="f_js" type="number" step="1" min="0" value="' + (S.find(x => x.t === "g").o.js || 0) + '"></label>' : "") + (one && p.t === "g" && o.jacks ? '<div class="name" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px"><span style="grid-column:1/-1;font-size:13px;color:var(--dim)">JACK NAMES (edit the text)</span>' + o.jacks.map((j, n) => '<input class="jn" data-n="' + n + '" type="text" value="' + String(j.n).replace(/"/g, "&quot;") + '"' + (j.o ? ' style="border-color:var(--accent)"' : "") + ">").join("") + "</div>" : "") + (S.some(x => x.t === "i") ? '<label>type<select id="f_type">' + [["k", "Knob"], ["v", "Fader"], ["b", "Button"], ["s", "Switch"]].map(([v, n]) => '<option value="' + v + '"' + (S.filter(x => x.t === "i").every(x => (x.o.kind === "n" ? "k" : x.o.kind) === v) ? " selected" : "") + ">" + n + "</option>").join("") + "</select></label>" : "") + (one && ((p.t === "i" && o.isnew) || (p.t === "l" && o.free)) ? '<button id="bDel">Delete this ' + (p.t === "l" ? "text" : "new control") + '</button>' : "") + (S.some(x => x.t === "l") ? '<label>text px (0 = auto)<input id="f_lfs" type="number" step="1" min="0" value="' + (S.find(x => x.t === "l").o.fs || 0) + '"></label>' : "") + (S.some(x => x.t === "g") ? '<label>box title px<input id="f_ts" type="number" step="1" min="8" value="' + (S.find(x => x.t === "g").o.ts || 15) + '"></label>' : "") + (one && p.t === "g" ? '<label style="grid-column:1/-1">box title text<input id="f_title" type="text" value="' + String(o.title || o.mod).replace(/"/g, "&quot;") + '"></label>' : "") + (one && p.t === "j" ? '<label style="grid-column:1/-1">jack text<input id="f_jtext" type="text" value="' + String(o.jk.n).replace(/"/g, "&quot;") + '"></label>' : "") + (S.some(x => x.t === "j") ? '<label>jack text px (whole module)<input id="f_jfs" type="number" step="1" min="8" value="' + (L.pages[page].groups[Math.floor(S.find(x => x.t === "j").i / 100)].fs || 14) + '"></label>' : "") + (one && p.t === "l" ? '<label style="grid-column:1/-1">label text<input id="f_text" type="text" value="' + String(o.text).replace(/"/g, "&quot;") + '"></label>' : "") + (kn.length ? '<div class="name" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="font-size:13px;color:var(--dim)">KNOB STYLE' + (kn.length > 1 ? " (all " + kn.length + " selected knobs)" : "") + '</span><span class="styles" id="oneStyles"></span><button id="bPageK">All knobs on this page</button></div>' : "");
+  if (kn.length) {
+    const first = kn[0].o.knob || "a", same = kn.every(x => (x.o.knob || "a") === first);
+    styleButtons($("oneStyles"), same ? first : "", v => { kn.forEach(x => x.o.knob = v); save(); render(); });
+    $("bPageK").onclick = () => { const v = kn[0].o.knob || "a"; L.pages[page].items.forEach(i => { if (ISKNOB(i.kind)) i.knob = v; }); save(); render(); say("Knob style " + v.toUpperCase() + " set on every knob of this page."); };
+  }
+  ["fs", "js"].forEach(k => { const f = $("f_" + k); if (f) f.onchange = ev => { const v = Math.max(k === "fs" ? 8 : 0, Math.round(+ev.target.value) || 0); S.filter(x => x.t === "g").forEach(x => { x.o[k] = v; }); save(); render(); }; });
+  box.querySelectorAll(".jn").forEach(inp => { inp.onchange = () => { o.jacks[+inp.dataset.n].n = inp.value.trim().toUpperCase() || o.jacks[+inp.dataset.n].n; save(); render(); }; });
+  if ($("f_lfs")) $("f_lfs").onchange = ev => { const v = Math.max(0, Math.round(+ev.target.value) || 0); S.filter(x => x.t === "l").forEach(x => { x.o.fs = v; }); save(); render(); };
+  if ($("f_ts")) $("f_ts").onchange = ev => { const v = Math.max(8, Math.round(+ev.target.value) || 15); S.filter(x => x.t === "g").forEach(x => { x.o.ts = v; }); save(); render(); };
+  if ($("f_title")) $("f_title").onchange = ev => { o.title = ev.target.value; save(); render(); };
+  if ($("f_type")) $("f_type").onchange = ev => { const v = ev.target.value; S.filter(x => x.t === "i").forEach(x => { x.o.kind = v; if (v === "k" && !x.o.knob) x.o.knob = "a"; }); save(); render(); say("Type changed."); };
+  if ($("bDel")) $("bDel").onclick = () => { const P = L.pages[page]; if (o.free) { P.labels = P.labels.filter(l => l !== o); setSel([]); save(); render(); say("Deleted."); return; } P.items = P.items.filter(i => i !== o); P.labels = P.labels.filter(l => l.id !== o.id); setSel([]); save(); render(); say("Deleted."); };
+  if ($("bJReset")) $("bJReset").onclick = () => { S.filter(x => x.t === "g").forEach(x => (x.o.jacks || []).forEach(j => { j.tx = 0; j.ty = 0; j.tw = 0; j.th = 0; j.mx = 0; j.my = 0; })); save(); render(); say("Jack texts reset."); };
+  if ($("f_split")) $("f_split").onchange = ev => { S.filter(x => x.t === "g").forEach(x => { x.o.split = ev.target.checked; }); save(); render(); };
+  if ($("f_jtext")) $("f_jtext").onchange = ev => { o.jk.n = ev.target.value.trim().toUpperCase() || o.jk.n; save(); render(); inspector(); };
+  if ($("f_jfs")) $("f_jfs").onchange = ev => { const v = Math.max(8, Math.round(+ev.target.value) || 14); new Set(S.filter(x => x.t === "j").map(x => Math.floor(x.i / 100))).forEach(gi => { L.pages[page].groups[gi].fs = v; }); save(); render(); inspector(); };
+  if ($("f_text")) $("f_text").onchange = ev => { o.text = ev.target.value.trim() || o.text; save(); render(); };
+  ["x", "y", "w", "h"].forEach(k => $("f_" + k).onchange = ev => {
+    let v = Math.round(+ev.target.value); if (!isFinite(v)) return;
+    if (k === "x" || k === "y") { const d = v - o[k]; S.forEach(x => x.o[k] += d); save(); render(); return; }
+    v = Math.max(16, v);
+    if (one && keepShape && p.t === "i") { const r = o.w / o.h; if (k === "w") { o.w = v; o.h = Math.round(v / r); } else { o.h = v; o.w = Math.round(v * r); } }
+    else S.forEach(x => { x.o[k] = v; });
+    save(); render();
+  });
+}
+
+function wire(e, t, i) {
+  e.addEventListener("pointerdown", ev => {
+    if (ev.target.classList.contains("h")) { startResize(ev, e, t, i); return; }
+    ev.preventDefault(); ev.stopPropagation();
+    const k = keyOf(t, i), add = ev.ctrlKey || ev.metaKey || ev.shiftKey;
+    if (add) { if (multi.has(k)) { multi.delete(k); if (sel && sel.t === t && sel.i === i) sel = null; } else { multi.add(k); sel = { t, i }; } render(); if (!multi.has(k)) return; }
+    else if (!multi.has(k)) { setSel([{ t, i }]); render(); }
+    else sel = { t, i };
+    inspector();
+    const sx = ev.clientX, sy = ev.clientY, S = selected(), start = S.map(x => [x.o.x, x.o.y]);
+    const host = stage.querySelector('[data-k="' + k + '"]') || e;
+    host.setPointerCapture(ev.pointerId);
+    let moved = false;
+    const mv = m => {
+      const dx = snap((m.clientX - sx) / scale), dy = snap((m.clientY - sy) / scale);
+      if (dx || dy) moved = true;
+      S.forEach((x, n) => { x.o.x = start[n][0] + dx; x.o.y = start[n][1] + dy; const el = stage.querySelector('[data-k="' + keyOf(x.t, x.i) + '"]'); if (el) { el.style.left = x.o.x + "px"; el.style.top = (x.o.y + HDR) + "px"; } });
+      syncInsp();
+    };
+    const up = () => { host.removeEventListener("pointermove", mv); host.removeEventListener("pointerup", up); if (moved) save(); render(); };
+    host.addEventListener("pointermove", mv); host.addEventListener("pointerup", up);
+  });
+}
+
+function startResize(ev, e, t, i) {
+  ev.preventDefault(); ev.stopPropagation();
+  if (!multi.has(keyOf(t, i))) setSel([{ t, i }]); sel = { t, i };
+  const o = cur(), S = selected(), sx = ev.clientX, sy = ev.clientY, ow = o.w, oh = o.h, r = ow / oh, start = S.map(x => [x.o.w, x.o.h]);
+  e.setPointerCapture(ev.pointerId);
+  const mv = m => {
+    let w = Math.max(16, snap(ow + (m.clientX - sx) / scale)), h = Math.max(16, snap(oh + (m.clientY - sy) / scale));
+    if (keepShape && t === "i") h = Math.max(16, Math.round(w / r));
+    const f = w / ow, g = h / oh;
+    S.forEach((x, n) => { x.o.w = Math.max(16, Math.round(start[n][0] * (S.length > 1 ? f : w / ow))); x.o.h = Math.max(16, Math.round(start[n][1] * (S.length > 1 ? g : h / oh))); if (S.length === 1) { x.o.w = w; x.o.h = h; } const el = stage.querySelector('[data-k="' + keyOf(x.t, x.i) + '"]'); if (el) { el.style.width = x.o.w + "px"; el.style.height = x.o.h + "px"; } });
+    syncInsp();
+  };
+  const up = () => { e.removeEventListener("pointermove", mv); e.removeEventListener("pointerup", up); save(); render(); };
+  e.addEventListener("pointermove", mv); e.addEventListener("pointerup", up);
+}
+
+// drag a box on the empty page to select what it touches (Ctrl keeps the current selection)
+stage.addEventListener("pointerdown", ev => {
+  if (ev.target !== stage) return;
+  ev.preventDefault();
+  const add = ev.ctrlKey || ev.metaKey || ev.shiftKey, r0 = stage.getBoundingClientRect();
+  const px = x => (x - r0.left) / scale, py = y => (y - r0.top) / scale - HDR;
+  const x0 = px(ev.clientX), y0 = py(ev.clientY), base = add ? [...multi] : [];
+  const box = document.createElement("div"); box.style.cssText = "position:absolute;border:1px dashed var(--accent);background:rgba(240,122,30,.12);pointer-events:none;z-index:9";
+  stage.appendChild(box);
+  stage.setPointerCapture(ev.pointerId);
+  const mv = m => {
+    const x1 = px(m.clientX), y1 = py(m.clientY), L1 = Math.min(x0, x1), T1 = Math.min(y0, y1), W1 = Math.abs(x1 - x0), H1 = Math.abs(y1 - y0);
+    box.style.cssText += ";left:" + L1 + "px;top:" + (T1 + HDR) + "px;width:" + W1 + "px;height:" + H1 + "px";
+    const P = L.pages[page], hit = [];
+    P.items.forEach((o, n) => { if (o.x < L1 + W1 && L1 < o.x + o.w && o.y < T1 + H1 && T1 < o.y + o.h) hit.push(keyOf("i", n)); });
+    P.labels.forEach((o, n) => { if (o.x < L1 + W1 && L1 < o.x + o.w && o.y < T1 + H1 && T1 < o.y + o.h) hit.push(keyOf("l", n)); });
+    P.groups.forEach((o, n) => { if (o.x < L1 + W1 && L1 < o.x + o.w && o.y < T1 + H1 && T1 < o.y + o.h) hit.push(keyOf("g", n)); });
+    const sr = stage.getBoundingClientRect(); stage.querySelectorAll(".dot b[data-k], .dot i[data-k]").forEach(b => { const e = b.getBoundingClientRect(), bx = (e.left - sr.left) / scale, by = (e.top - sr.top) / scale - HDR; if (bx < L1 + W1 && L1 < bx + e.width / scale && by < T1 + H1 && T1 < by + e.height / scale) hit.push(b.dataset.k); });
+    multi.clear(); base.concat(hit).forEach(k => multi.add(k));
+    stage.querySelectorAll("[data-k]").forEach(el => el.classList.toggle("sel", multi.has(el.dataset.k)));
+  };
+  const up = () => { stage.removeEventListener("pointermove", mv); stage.removeEventListener("pointerup", up); const S = selected(); sel = S.length ? { t: S[S.length - 1].t, i: S[S.length - 1].i } : null; render(); };
+  stage.addEventListener("pointermove", mv); stage.addEventListener("pointerup", up);
+});
+
+function syncInsp() { const S = selected(); if (!S.length) return; const o = (S.find(x => sel && x.t === sel.t && x.i === sel.i) || S[0]).o; ["x", "y", "w", "h"].forEach(k => { const f = $("f_" + k); if (f) f.value = Math.round(o[k]); }); }
+
+function selectAll(onlyKnobs) {
+  const P = L.pages[page], list = [];
+  P.items.forEach((o, i) => { if (!onlyKnobs || ISKNOB(o.kind)) list.push({ t: "i", i }); });
+  if (!onlyKnobs) P.labels.forEach((o, i) => list.push({ t: "l", i }));
+  setSel(list); render(); say(list.length + " selected.");
+}
+document.addEventListener("keydown", ev => {
+  if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
+  if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "a") { ev.preventDefault(); selectAll(false); return; }
+  if (ev.key === "Escape") { setSel([]); render(); return; }
+  const S = selected(); if (!S.length) return;
+  const d = ev.shiftKey ? 10 : 1;
+  const m = { ArrowLeft: ["x", -d], ArrowRight: ["x", d], ArrowUp: ["y", -d], ArrowDown: ["y", d] }[ev.key];
+  if (!m) return;
+  ev.preventDefault(); S.forEach(x => x.o[m[0]] += m[1]); save(); render();
+});
+
+function resizeBy(f) {
+  const S = selected(); if (!S.length) { say("Select a control first.", true); return; }
+  S.forEach(x => { const o = x.o, cx = o.x + o.w / 2, cy = o.y + o.h / 2; o.w = Math.max(16, Math.round(o.w * f)); o.h = Math.max(16, Math.round(o.h * f)); o.x = Math.round(cx - o.w / 2); o.y = Math.round(cy - o.h / 2); });
+  save(); render();
+}
+$("bBig").onclick = () => resizeBy(1.1);
+$("bSmall").onclick = () => resizeBy(0.9);
+$("bOrig").onclick = () => { const o = $("orig"); o.hidden = !o.hidden; $("bOrig").className = o.hidden ? "" : "on"; showOrig(); if (!o.hidden) o.scrollIntoView({ behavior: "smooth", block: "nearest" }); };
+
+const REAL = [["KOMPAS","kompas/bastl_kompas_001-130x680"],["CRUST","crust/bastl_crust_front_-214x680"],["PIZZA","pizza/bastl_pizza-373x1200"],["ABC","abc/003-231x1200"],["BASIL","basil/bastl_basil_001-376x1200"],["ALCHEMIST","citadel-alchemist/bastl-citadel-alchemist-1r-400x533"],["WAVE BARD","citadel-wave-bard/bastl-citadel-wave-bard-1r-400x533"]];
+$("bReal").onclick = () => { const o = $("real"); o.hidden = !o.hidden; $("bReal").className = o.hidden ? "" : "on"; if (!o.hidden) { if (!$("realRow").children.length) $("realRow").innerHTML = REAL.map(r => '<figure style="margin:0;text-align:center;font:600 14px sans-serif;color:#222"><img src="https://bastl-instruments.com/thumbs/eurorack/modules/' + r[1] + '.jpg" alt="' + r[0] + '" style="height:520px;width:auto;display:block"><figcaption>' + r[0] + '</figcaption></figure>').join(""); o.scrollIntoView({ behavior: "smooth", block: "nearest" }); } };
+function alignSel(axis) {
+  const S = selected(); if (S.length < 2) { say("Select two or more first (Ctrl-click, or drag a box).", true); return; }
+  const ref = (S.find(x => sel && x.t === sel.t && x.i === sel.i) || S[S.length - 1]).o, by = $("alignBy").value;
+  const pos = axis === "row" ? "y" : "x", size = axis === "row" ? "h" : "w";
+  S.forEach(x => { const o = x.o; if (o === ref) return; o[pos] = by === "c" ? Math.round(ref[pos] + ref[size] / 2 - o[size] / 2) : by === "s" ? ref[pos] : ref[pos] + ref[size] - o[size]; });
+  save(); render(); say((axis === "row" ? "Same row" : "Same column") + ": " + (S.length - 1) + " lined up to the one you clicked last.");
+}
+$("bAlignRow").onclick = () => alignSel("row");
+$("bAlignCol").onclick = () => alignSel("col");
+$("bAdd").onclick = () => { const a = $("addbox"); a.hidden = !a.hidden; $("addMod").innerHTML = L.pages[page].modules.map(m => '<option>' + m.name + '</option>').join(""); };
+$("bAddText").onclick = () => {
+  const P = L.pages[page]; let n = 1; while (L.pages.some(q => q.labels.some(l => l.id === "txt_" + n))) n++;
+  P.labels.push({ id: "txt_" + n, mod: "TEXT", role: "free_text", text: "TEXT", x: 8, y: 8, w: 160, h: 40, free: true });
+  setSel([{ t: "l", i: P.labels.length - 1 }]); save(); render(); say("Text added at the top left. Type your words in 'label text' below, drag it where you want it.");
+};
+$("bAddX").onclick = () => { $("addbox").hidden = true; };
+$("bAddGo").onclick = () => {
+  const P = L.pages[page], kind = $("addType").value, mod = $("addMod").value, name = ($("addName").value.trim() || "NEW").toUpperCase();
+  let n = 1; while (P.items.some(i => i.id === "new_" + n) || L.pages.some(q => q.items.some(i => i.id === "new_" + n))) n++;
+  const id = "new_" + n, w = kind === "v" ? 120 : 88, h = kind === "v" ? 56 : 88;
+  const it = { id, mod, role: name.replace(/ /g, "_"), kind, label: name, isnew: true, x: 8, y: 8, w, h };
+  if (kind === "k") it.knob = "a";
+  P.items.push(it); P.labels.push({ id, mod, role: it.role, text: name, x: 8, y: 8 + h, w, h: 40 });
+  setSel([{ t: "i", i: P.items.length - 1 }]); save(); render(); say("Added " + name + " at the top left. Drag it where you want it.");
+};
+$("bRealX").onclick = () => { $("real").hidden = true; $("bReal").className = ""; };
+$("bOrigX").onclick = () => { $("orig").hidden = true; $("bOrig").className = ""; };
+$("bAll").onclick = () => selectAll(false);
+$("bKnobs").onclick = () => selectAll(true);
+$("bLabels").onclick = () => { const list = L.pages[page].labels.map((o, i) => ({ t: "l", i })); setSel(list); render(); say(list.length + " labels selected."); };
+$("bNone").onclick = () => { setSel([]); render(); };
+$("snap").onchange = ev => { snapV = +ev.target.value; };
+$("bAspect").onclick = ev => { keepShape = !keepShape; ev.target.className = keepShape ? "on" : ""; };
+$("bDef").onclick = () => {
+  const S = selected(); if (!S.length) { say("Select a control first.", true); return; }
+  S.forEach(x => { const d = x.t === "g" ? defGroup(x.o.mod) : x.t === "l" ? defLabel(x.o.id) : defItem(x.o.id); if (d) ["x", "y", "w", "h"].forEach(k => x.o[k] = d[k]); });
+  save(); render(); say("Reset to the starting position.");
+};
+$("bPage").onclick = () => {
+  if (!$("bPage").dataset.arm) { $("bPage").dataset.arm = 1; $("bPage").textContent = "Press again to reset this page"; setTimeout(() => { delete $("bPage").dataset.arm; $("bPage").textContent = "Reset this page"; }, 3000); return; }
+  delete $("bPage").dataset.arm; $("bPage").textContent = "Reset this page";
+  L.pages[page] = JSON.parse(JSON.stringify(DEFAULT.pages[page])); setSel([]); save(); render(); say("Page " + (page + 1) + " reset.");
+};
+function layoutText() {
+  const out = { page_w: L.page_w, page_h: L.page_h, note: "x,y,w,h in page pixels below the 70 px header; knobs and other controls, then each knob's separate text label (own x,y,w,h), then the module jack groups", pages: L.pages.map(p => ({ screen: p.screen, items: p.items.map(i => Object.assign({ id: i.id, kind: (i.kind === "n" ? "k" : i.kind) }, ISKNOB(i.kind) ? { knob: i.knob || "a" } : {}, i.isnew ? { new: true, mod: i.mod, name: i.label } : {}, { x: i.x, y: i.y, w: i.w, h: i.h })), labels: p.labels.map(l => Object.assign({ id: l.id, text: l.text, text_px: l.fs || 0, x: l.x, y: l.y, w: l.w, h: l.h }, l.free ? { free: true } : {})), groups: p.groups.map(g => ({ mod: g.mod, x: g.x, y: g.y, w: g.w, h: g.h, jack_text_px: g.fs || 14, jack_px: g.js || 0, jack_names: (g.jacks || []).map(j => j.n), jack_text_offsets: (g.jacks || []).map(j => [j.tx || 0, j.ty || 0]), jack_text_boxes: (g.jacks || []).map(j => [j.tw || 0, j.th || 0]), jack_icon_offsets: (g.jacks || []).map(j => [j.mx || 0, j.my || 0]), module: g.module || g.mod, side: g.side || "", jack_src: (g.jacks || []).map((j, i) => j.src === undefined ? i : j.src), two_sides: isSplit(g), jack_grid: (() => { const q = placeJacks(g); return { rows: q.rows, cols: q.cols, gap_col: q.split ? q.c2 + 1 : 0 }; })(), jack_cells: (() => { const q = placeJacks(g); return (g.jacks || []).map((j, i) => ({ jack: j.n, out: !!j.o, row: q.place[i][0], col: q.place[i][1] })); })(), title: g.title || g.mod, title_px: g.ts || 15 })) })) };
+  return JSON.stringify(out);
+}
+$("bExp").onclick = () => { $("txt").value = layoutText(); $("exp").open = true; $("exp").scrollIntoView({ behavior: "smooth", block: "nearest" }); };
+$("bCopy").onclick = () => {
+  const t = $("txt"); if (!t.value) t.value = layoutText();
+  const done = () => say("Copied. Paste it into the chat.");
+  const fall = () => { t.focus(); t.select(); say("Press Ctrl+C (or Copy) to copy the selected text."); };
+  try { navigator.clipboard.writeText(t.value).then(done, fall); } catch (e) { fall(); }
+};
+$("bLoad").onclick = () => {
+  try {
+    const o = JSON.parse($("txt").value);
+    o.pages.forEach((p, pi) => {
+      p.items.forEach(a => { let t = L.pages[pi].items.find(i => i.id === a.id); if (!t && a.new) { t = { id: a.id, mod: a.mod, role: String(a.name || "NEW").replace(/ /g, "_"), kind: a.kind, label: a.name || "NEW", isnew: true, x: a.x, y: a.y, w: a.w, h: a.h }; L.pages[pi].items.push(t); if (!(p.labels || []).some(l => l.id === a.id)) L.pages[pi].labels.push({ id: a.id, mod: a.mod, role: t.role, text: t.label, x: a.x, y: a.y + a.h, w: a.w, h: 40 }); } if (t) { if (a.kind) t.kind = a.kind; t.x = a.x; t.y = a.y; t.w = a.w; t.h = a.h; if (a.knob) t.knob = a.knob; } });
+      (p.labels || []).forEach(a => { let t = L.pages[pi].labels.find(i => i.id === a.id); if (!t && a.free) { t = { id: a.id, mod: "TEXT", role: "free_text", text: a.text || "TEXT", x: a.x, y: a.y, w: a.w, h: a.h, free: true }; L.pages[pi].labels.push(t); } if (t) { t.x = a.x; t.y = a.y; t.w = a.w; t.h = a.h; if (a.text) t.text = a.text; if (a.text_px !== undefined) t.fs = a.text_px; } });
+      p.groups.forEach(a => { if (a.mod === "CRUST21") { const pg = L.pages[pi].groups, hw = Math.floor((a.w - 8) / 2); ["A", "B"].forEach((sd, k) => { const t = pg.find(g => g.mod === "CRUST21 " + sd); if (!t) return; t.x = a.x + k * (hw + 8); t.y = a.y; t.w = hw; t.h = a.h; if (a.jack_text_px) t.fs = a.jack_text_px; if (a.jack_px !== undefined) t.js = a.jack_px; if (a.title_px) t.ts = a.title_px; t.jacks.forEach(j => { const i = j.src; if (a.jack_names && a.jack_names[i]) j.n = a.jack_names[i]; if (a.jack_text_offsets && a.jack_text_offsets[i]) { j.tx = a.jack_text_offsets[i][0]; j.ty = a.jack_text_offsets[i][1]; } if (a.jack_text_boxes && a.jack_text_boxes[i]) { j.tw = a.jack_text_boxes[i][0]; j.th = a.jack_text_boxes[i][1]; } }); }); return; } let t = L.pages[pi].groups.find(g => g.mod === a.mod); if (t) { t.x = a.x; t.y = a.y; t.w = a.w; t.h = a.h; if (a.jack_text_px) t.fs = a.jack_text_px; if (a.jack_px !== undefined) t.js = a.jack_px; if (a.title) t.title = String(a.title).replace(/\s*·\s*\d+ jacks$/, ""); if (a.title_px) t.ts = a.title_px; const jx = n => (a.jack_src && t.jacks && t.jacks.some(j => j.src !== undefined)) ? t.jacks.find(j => j.src === a.jack_src[n]) : (t.jacks || [])[n]; if (a.jack_names && t.jacks) a.jack_names.forEach((nm, n) => { const j = jx(n); if (j) j.n = nm; }); if (a.two_sides !== undefined) t.split = !!a.two_sides; if (a.jack_icon_offsets && t.jacks) a.jack_icon_offsets.forEach((o, n) => { const j = jx(n); if (j) { j.mx = o[0]; j.my = o[1]; } }); if (a.jack_text_boxes && t.jacks) a.jack_text_boxes.forEach((o, n) => { const j = jx(n); if (j) { j.tw = o[0]; j.th = o[1]; } }); if (a.jack_text_offsets && t.jacks) a.jack_text_offsets.forEach((o, n) => { const j = jx(n); if (j) { j.tx = o[0]; j.ty = o[1]; } }); } });
+    });
+    save(); render(); say("Layout loaded.");
+  } catch (e) { say("That text is not a layout file.", true); }
+};
+window.addEventListener("resize", fit);
+function allKnobs(v) { L.pages.forEach(p => p.items.forEach(i => { if (ISKNOB(i.kind)) i.knob = v; })); save(); render(); say("Knob style " + v.toUpperCase() + " set on every knob, all pages."); }
+styleButtons($("allStyles"), "", allKnobs);
+fit(); render();
+</script>

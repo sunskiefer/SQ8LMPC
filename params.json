@@ -1,0 +1,1106 @@
+{
+ "params": [
+  {
+   "key": "program",
+   "name": "PROGRAM",
+   "display": "int",
+   "min": 0,
+   "max": 511,
+   "default": 256,
+   "nudge_pct": 10,
+   "refresh_display": true
+  },
+  {
+   "key": "k0",
+   "name": "KNOB 1",
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "dynamic_name": true,
+   "dynamic_display": true
+  },
+  {
+   "key": "k1",
+   "name": "KNOB 2",
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "dynamic_name": true,
+   "dynamic_display": true
+  },
+  {
+   "key": "k2",
+   "name": "KNOB 3",
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "dynamic_name": true,
+   "dynamic_display": true
+  },
+  {
+   "key": "k3",
+   "name": "KNOB 4",
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "dynamic_name": true,
+   "dynamic_display": true
+  },
+  {
+   "key": "k4",
+   "name": "KNOB 5",
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "dynamic_name": true,
+   "dynamic_display": true
+  },
+  {
+   "key": "k5",
+   "name": "KNOB 6",
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "dynamic_name": true,
+   "dynamic_display": true
+  },
+  {
+   "key": "k6",
+   "name": "KNOB 7",
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "dynamic_name": true,
+   "dynamic_display": true
+  },
+  {
+   "key": "k7",
+   "name": "KNOB 8",
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "dynamic_name": true,
+   "dynamic_display": true
+  },
+  {
+   "key": "k8",
+   "name": "KNOB 9",
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "dynamic_name": true,
+   "dynamic_display": true
+  },
+  {
+   "key": "k9",
+   "name": "KNOB 10",
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "dynamic_name": true,
+   "dynamic_display": true
+  },
+  {
+   "key": "pg_osc1",
+   "name": "OSC 1",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "pg_osc2",
+   "name": "OSC 2",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "pg_osc3",
+   "name": "OSC 3",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "pg_dca1",
+   "name": "DCA 1",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "pg_dca2",
+   "name": "DCA 2",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "pg_dca3",
+   "name": "DCA 3",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "pg_filt",
+   "name": "FILTER",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "pg_dca4",
+   "name": "DCA 4",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "pg_modes",
+   "name": "MODES",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "pg_lfo1",
+   "name": "LFO 1",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "pg_lfo2",
+   "name": "LFO 2",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "pg_lfo3",
+   "name": "LFO 3",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "pg_lfo4",
+   "name": "LFO 4",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "pg_env1",
+   "name": "ENV 1",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "pg_env2",
+   "name": "ENV 2",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "pg_env3",
+   "name": "ENV 3",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "pg_env4",
+   "name": "ENV 4",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "pg_mat1",
+   "name": "MATRIX 1",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "pg_mat2",
+   "name": "MATRIX 2",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "pg_mat3",
+   "name": "MATRIX 3",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "pg_wav",
+   "name": "WAVES",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "b_up",
+   "name": "PRG +",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "b_down",
+   "name": "PRG -",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "b_bank",
+   "name": "BANK",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "b_write",
+   "name": "WRITE",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "b_init",
+   "name": "INIT",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "b_sync",
+   "name": "SYNC",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "b_am",
+   "name": "AM",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "b_mono",
+   "name": "MONO",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "b_pgup",
+   "name": "PAGE UP",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "b_pgdn",
+   "name": "PAGE DN",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "b_load",
+   "name": "LOAD",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "b_export",
+   "name": "EXPORT",
+   "momentary": true,
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "refresh_display": true
+  },
+  {
+   "key": "led_sync",
+   "name": "SYNC LED",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": 0
+  },
+  {
+   "key": "led_am",
+   "name": "AM LED",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": 0
+  },
+  {
+   "key": "led_mono",
+   "name": "MONO LED",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": 0
+  },
+  {
+   "key": "led_pgup",
+   "name": "PAGE UP LIT",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": 0
+  },
+  {
+   "key": "led_pgdn",
+   "name": "PAGE DN LIT",
+   "options": [
+    "OFF",
+    "ON"
+   ],
+   "default": 0
+  },
+  {
+   "key": "c0_00",
+   "name": "VFD 1.01",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_01",
+   "name": "VFD 1.02",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_02",
+   "name": "VFD 1.03",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_03",
+   "name": "VFD 1.04",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_04",
+   "name": "VFD 1.05",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_05",
+   "name": "VFD 1.06",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_06",
+   "name": "VFD 1.07",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_07",
+   "name": "VFD 1.08",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_08",
+   "name": "VFD 1.09",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_09",
+   "name": "VFD 1.10",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_10",
+   "name": "VFD 1.11",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_11",
+   "name": "VFD 1.12",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_12",
+   "name": "VFD 1.13",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_13",
+   "name": "VFD 1.14",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_14",
+   "name": "VFD 1.15",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_15",
+   "name": "VFD 1.16",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_16",
+   "name": "VFD 1.17",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_17",
+   "name": "VFD 1.18",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_18",
+   "name": "VFD 1.19",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_19",
+   "name": "VFD 1.20",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_20",
+   "name": "VFD 1.21",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_21",
+   "name": "VFD 1.22",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_22",
+   "name": "VFD 1.23",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_23",
+   "name": "VFD 1.24",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_24",
+   "name": "VFD 1.25",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_25",
+   "name": "VFD 1.26",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_26",
+   "name": "VFD 1.27",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_27",
+   "name": "VFD 1.28",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_28",
+   "name": "VFD 1.29",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_29",
+   "name": "VFD 1.30",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_30",
+   "name": "VFD 1.31",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_31",
+   "name": "VFD 1.32",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_32",
+   "name": "VFD 1.33",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_33",
+   "name": "VFD 1.34",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_34",
+   "name": "VFD 1.35",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_35",
+   "name": "VFD 1.36",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_36",
+   "name": "VFD 1.37",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_37",
+   "name": "VFD 1.38",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_38",
+   "name": "VFD 1.39",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_39",
+   "name": "VFD 1.40",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_40",
+   "name": "VFD 1.41",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_41",
+   "name": "VFD 1.42",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_42",
+   "name": "VFD 1.43",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c0_43",
+   "name": "VFD 1.44",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_00",
+   "name": "VFD 2.01",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_01",
+   "name": "VFD 2.02",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_02",
+   "name": "VFD 2.03",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_03",
+   "name": "VFD 2.04",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_04",
+   "name": "VFD 2.05",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_05",
+   "name": "VFD 2.06",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_06",
+   "name": "VFD 2.07",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_07",
+   "name": "VFD 2.08",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_08",
+   "name": "VFD 2.09",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_09",
+   "name": "VFD 2.10",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_10",
+   "name": "VFD 2.11",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_11",
+   "name": "VFD 2.12",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_12",
+   "name": "VFD 2.13",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_13",
+   "name": "VFD 2.14",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_14",
+   "name": "VFD 2.15",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_15",
+   "name": "VFD 2.16",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_16",
+   "name": "VFD 2.17",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_17",
+   "name": "VFD 2.18",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_18",
+   "name": "VFD 2.19",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_19",
+   "name": "VFD 2.20",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_20",
+   "name": "VFD 2.21",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_21",
+   "name": "VFD 2.22",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_22",
+   "name": "VFD 2.23",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_23",
+   "name": "VFD 2.24",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_24",
+   "name": "VFD 2.25",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_25",
+   "name": "VFD 2.26",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_26",
+   "name": "VFD 2.27",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_27",
+   "name": "VFD 2.28",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_28",
+   "name": "VFD 2.29",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_29",
+   "name": "VFD 2.30",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_30",
+   "name": "VFD 2.31",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_31",
+   "name": "VFD 2.32",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_32",
+   "name": "VFD 2.33",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_33",
+   "name": "VFD 2.34",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_34",
+   "name": "VFD 2.35",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_35",
+   "name": "VFD 2.36",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_36",
+   "name": "VFD 2.37",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_37",
+   "name": "VFD 2.38",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_38",
+   "name": "VFD 2.39",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_39",
+   "name": "VFD 2.40",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_40",
+   "name": "VFD 2.41",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_41",
+   "name": "VFD 2.42",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_42",
+   "name": "VFD 2.43",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "c1_43",
+   "name": "VFD 2.44",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "n0",
+   "name": "NUM 1",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "n1",
+   "name": "NUM 2",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "n2",
+   "name": "NUM 3",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "n3",
+   "name": "NUM 4",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "pname",
+   "name": "PROGRAM NAME",
+   "display": "string",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  },
+  {
+   "key": "pack",
+   "name": "BANK SET",
+   "display": "string",
+   "min": 0,
+   "max": 1,
+   "default": 0
+  }
+ ]
+}
