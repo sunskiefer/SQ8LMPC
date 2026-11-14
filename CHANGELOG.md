@@ -9,4 +9,4 @@
 - Q-Link pages PANEL 1 and PANEL 2, data wheel on the selected parameter.
 - Every control and label placed from `layout.json`; Panel Editor included.
 - Packaged with the fixed L'Cronx release tools (the ' in L'Cronx is escaped in install.sh and uninstall.sh).
-- Not yet tested on a Force.
+- Tested on an Akai Force, MPC OS 3.9.1 (2026-11-14).
