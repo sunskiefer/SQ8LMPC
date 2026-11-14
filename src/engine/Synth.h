@@ -1,0 +1,191 @@
+// The complete SQ8L engine: master + DSP modules + edit buffer + library, with the
+// behaviour of the original VST wrapper class CSynth (unit uPlug_SQ8L).
+#pragma once
+
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "Amp.h"
+#include "Doc.h"
+#include "EditBuffer.h"
+#include "EditorPlace.h"
+#include "Env.h"
+#include "Lfo.h"
+#include "Master.h"
+#include "MidiParser.h"
+#include "ModFollower.h"
+#include "Settings.h"
+#include "SoundLibrary.h"
+#include "VoiceModules.h"
+
+namespace sq8l {
+
+// VoiceModules implemented with the real module ports (one Doc, per voice slot 4 LFOs,
+// 4 envelopes, 1 amp, 1 mod follower), constructed like the original master does.
+class SynthModules final : public VoiceModules {
+public:
+    SynthModules();
+
+    void docReset() override { doc.resetAll(); }
+    void docSetNumVoices(int32_t n) override { doc.setNumVoices(static_cast<uint32_t>(n)); }
+    void docSetSampleRate(float sr) override { doc.setSampleRate(sr); }
+    void docStartVoice(int v, int32_t key, int32_t resetPhase, int32_t newNote, int32_t linkedVoice) override {
+        doc.startVoice(static_cast<uint32_t>(v), key, linkedVoice, newNote, resetPhase);
+    }
+    void docSetPitchKey(int v, int32_t key) override { doc.setPitchKey(static_cast<uint32_t>(v), key); }
+    int32_t docRetune(int v, const Tuning& t, int32_t key, int32_t wave) override {
+        // Inactive (disabled, or the master went away mid-note): back to the nominal clock,
+        // without paying for the wavesample lookup below.
+        if (!t.active()) {
+            doc.setVoiceClock(static_cast<uint32_t>(v), 1.0);
+            return 0;
+        }
+        const VoiceRetune r = computeRetune(t, key, doc.basePitch(key, wave), doc.phaseInc);
+        doc.setVoiceClock(static_cast<uint32_t>(v), r.clockRatio);
+        return r.pitchOffset;
+    }
+    void docStopVoice(int v) override { doc.stopVoice(static_cast<uint32_t>(v)); }
+    void docSetOscReverse(int v, int osc, bool reverse) override {
+        doc.setOscReverse(static_cast<uint32_t>(v), osc, reverse);
+    }
+    void docInterpolateLevels(int v) override { doc.interpolateLevels(static_cast<uint32_t>(v)); }
+    MasterDocParams& docVoiceParams(int v) override;
+    void docUpdate(int v) override { doc.update(static_cast<uint32_t>(v)); }
+    double docRender(int v) override { return doc.render(static_cast<uint32_t>(v)); }
+    int32_t docReleaseSamples() override { return doc.releaseSamples; }
+
+    void lfoSetControlRate(int v, int i, float rate) override { lfo[v][i].setControlRate(rate); }
+    LfoParams& lfoParams(int v, int i) override;
+    void lfoStart(int v, int i, int32_t phase, bool reset) override { lfo[v][i].trigger(phase, reset); }
+    int32_t lfoTick(int v, int i) override { return lfo[v][i].tick(); }
+    void lfoSetSync(int v, int i, int32_t increment, bool lock, uint32_t phase) override {
+        lfo[v][i].syncInc = increment;
+        lfo[v][i].syncLock = lock ? 1 : 0;
+        lfo[v][i].syncPhase = phase;
+    }
+
+    void envSetControlRate(int v, int i, float rate) override { env[v][i].setRate(rate); }
+    void envStart(int v, int i, const uint8_t* block, int32_t key, int32_t velocity, bool restart, bool cycle,
+                  int32_t otherVoice) override {
+        env[v][i].start(block, key, velocity, restart ? 1 : 0, cycle ? 1 : 0,
+                        otherVoice >= 0 ? &env[otherVoice][i] : nullptr);
+    }
+    void envRelease(int v, int i, bool pedal) override { env[v][i].release(pedal); }
+    int32_t envTick(int v, int i, bool pedal) override { return env[v][i].tick(pedal); }
+    int32_t envShaped(int v, int i) override { return env[v][i].shaped(); }
+    bool envActive(int v, int i) override { return env[v][i].active != 0; }
+    void envSetSyncTicks(int v, double ticksPerQuarter) override {
+        for (Env& e : env[v]) e.syncTicksPerQuarter = ticksPerQuarter;
+    }
+
+    void ampSetSampleRate(int v, float sr) override { amp[v].setSampleRate(sr); }
+    void ampSetSaturation(int v, int32_t a) override { amp[v].setSaturation(a); }
+    void ampStart(int v, int32_t from) override { amp[v].start(from >= 0 ? &amp[from] : nullptr); }
+    void ampSetRampTime(int v, float s) override { amp[v].setRampTime(s); }
+    void ampSetSmoothing(int v, int32_t x) override { amp[v].setSmoothing(x); }
+    void ampSetLevelPan(int v, int32_t level, int32_t pan, float gain, bool immediate) override {
+        amp[v].setLevelPan(level, pan, gain, immediate);
+    }
+    void ampProcess(int v, double x, float* acc) override { amp[v].process(x, acc); }
+    void ampProcessFaded(int v, double x, float* acc, float fade) override { amp[v].processFade(x, acc, fade); }
+    int32_t ampRampCount(int v) override { return amp[v].rampCount; }
+
+    void follSetControlRate(int v, float rate) override { foll[v].setRate(rate); }
+    void follSetSpeed(int v, float speed) override { foll[v].setSpeed(speed); }
+    void follSetTarget(int v, int32_t t) override { foll[v].setTarget(t); }
+    void follReset(int v, int32_t x) override { foll[v].reset(x); }
+    int32_t follTick(int v) override { return foll[v].tick(); }
+
+    Doc doc;
+    Lfo lfo[kMaxVoiceSlots][4];
+    Env env[kMaxVoiceSlots][4];
+    Amp amp[kMaxVoiceSlots];
+    ModFollower foll[kMaxVoiceSlots];
+};
+
+class Synth {
+public:
+    static constexpr int kNumPrograms = SoundLibrary::kNumPrograms;
+
+    // library: shared library (the original keeps one per DLL); nullptr = own factory library.
+    // notify: receives the master's host/editor notifications (program loaded etc.).
+    explicit Synth(float sampleRate = 44100.0f, SoundLibrary* library = nullptr,
+                   const Settings* settings = nullptr, MasterNotify* notify = nullptr);
+
+    // ---- VST2 dispatcher semantics (CSynth)
+    void setSampleRate(float sr);                         // effSetSampleRate (CSynth_v000)
+    void processEvents(const RawMidiEvent* ev, int32_t n);  // effProcessEvents (CSynth_v040)
+    void process(float* outL, float* outR, int32_t n, bool replacing = true);  // CSynth_v006 / v005
+    void setProgram(int32_t index);                       // effSetProgram (CSynth_v010/v011)
+    int32_t program() const;                              // effGetProgram
+    std::string programName() const;                      // effGetProgramName (edit buffer name)
+    std::string programNameIndexed(int32_t index) const;  // effGetProgramNameIndexed
+    void setProgramName(const std::string& name);         // effSetProgramName
+    std::vector<uint8_t> getChunk();                      // effGetChunk (CSynth_v018)
+    int32_t setChunk(const uint8_t* data, size_t size);   // effSetChunk (CSynth_v019): 0 ok, -1 error
+
+    Master& master() { return *master_; }
+    // (port) Playable voices. The program's (EMU -> VOICES, ofs::Polyphony) unless this
+    // instance overrides them with OPTIONS -> Polyphony: 1..64, 0 = set by the program. The
+    // override belongs to the instance, so the plugin saves it in its own state, not in
+    // SQ8L.ini. Nothing resets: the value is a limit read at the next note on.
+    void setPolyphonyOverride(int voices);
+    int polyphonyOverride() const;
+    int polyphony() const;
+    // (port) MTS-ESP: the tuning snapshot the engine reads. Owned by the caller (the plugin
+    // refreshes it once per block); nullptr = no retuning at all. See docs/modules/tuning.md.
+    void setTuning(const Tuning* t);
+    // (port) OPTIONS -> MTS-ESP, both off by default. Of this instance, like the polyphony
+    // override above and for the same reason: a global would not be recalled with a project
+    // and would be shared by every instance in it. The plugin saves them in its own state.
+    bool mtsEnabled() const { return mtsEnabled_; }
+    void setMtsEnabled(bool on) { mtsEnabled_ = on; }
+    bool mtsCorrectPitch() const { return mtsCorrectPitch_; }
+    void setMtsCorrectPitch(bool on) { mtsCorrectPitch_ = on; }
+    // (port, issue #40) OPTIONS -> Support MIDI Program Change. MIDI PC 0..127 selects that
+    // program; CC0 names the bank for the next PC, and until one arrives the PC loads from
+    // the bank the edit buffer is on. Of this instance, saved with the plugin's state like
+    // the three below. A new instance starts on; a chunk written by the original or by an
+    // earlier port carries no bit and so starts off, leaving old projects as they were.
+    bool programChangeEnabled() const { return master_->programChangeEnabled(); }
+    void setProgramChangeEnabled(bool on) { master_->setProgramChangeEnabled(on); }
+    // (port, issue #52) OPTIONS -> Output gain: the cut of this instance in dB, one of
+    // Settings::kOutputCutsDb. Of this instance like the two above, and saved with the
+    // plugin's state; a newly created instance starts at the cut last chosen anywhere
+    // (Settings::outputCutDb), which is the only part of it that is a user preference.
+    int outputCut() const { return outputCut_; }
+    void setOutputCut(int db);
+    // (port, issue #45) OPTIONS -> Keyboard -> Page memory, and what it remembers. Of this
+    // instance like the switches above: two instances in a project can be left on different
+    // pages, and each should open where it was. The place is opaque here - see EditorPlace.h.
+    bool pageMemory() const { return pageMemory_; }
+    void setPageMemory(bool on) { pageMemory_ = on; }
+    const EditorPlace& editorPlace() const { return place_; }
+    void setEditorPlace(const EditorPlace& p) { place_ = p; }
+    EditBuffer& editBuffer() { return *edit_; }
+    SoundLibrary& library() { return *library_; }
+    SynthModules& modules() { return *modules_; }
+
+private:
+    void syncProgram();
+    bool restoreGuard();
+
+    std::unique_ptr<SoundLibrary> ownLibrary_;
+    SoundLibrary* library_;
+    Settings settings_;
+    std::unique_ptr<SynthModules> modules_;
+    std::unique_ptr<EditBuffer> edit_;
+    std::unique_ptr<Master> master_;
+    bool chunkLoaded_ = false;  // CSynth +0xb4: ignore the next program selection after setChunk
+    bool mtsEnabled_ = false;        // (port) OPTIONS -> MTS-ESP -> Enable
+    bool mtsCorrectPitch_ = false;   // (port) ... -> Correct SQ-80 per-key pitch offsets
+    int outputCut_ = 0;              // (port) OPTIONS -> Output gain, the cut in dB
+    // (port, issue #45) OPTIONS -> Keyboard -> Page memory, on unless a chunk says
+    // otherwise, and what it remembers.
+    bool pageMemory_ = true;
+    EditorPlace place_;
+};
+
+}  // namespace sq8l

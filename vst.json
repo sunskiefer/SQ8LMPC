@@ -1,0 +1,19 @@
+{
+  "name": "SQ8LMPC",
+  "vendor": "L'Cronx",
+  "uid": "SQ8L",
+  "version": 1000,
+  "so": "sq8lmpc.so",
+  "params": "params.json",
+  "layout": "layout.conf",
+  "cc": false,
+  "nrpn": false,
+  "programs": {"param": "program"},
+  "defines": {
+    "HAS_DISPLAY_REV": 1,
+    "DISPLAY_REV_NO_UPDATE": 1,
+    "SAMPLE_ACCURATE": 1,
+    "PARAM_TEXT_MAX": 64,
+    "MODULE_SUBDIR": "\"data\""
+  }
+}
