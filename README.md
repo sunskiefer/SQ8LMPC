@@ -13,7 +13,7 @@ through [mpc-vst-plugins](https://github.com/sd88me/mpc-vst-plugins)). Based on
 > charge, for preservation only, in good faith. If you hold rights and object, open an issue and ask for a private
 > contact: it will be removed. See [Credits](#credits) and [LICENSES.md](LICENSES.md).
 
-**Status: not yet tested on an Akai Force.** It is tested offline (see [Testing](#testing)). Downloads:
+**Status: tested on an Akai Force (MPC OS 3.9.1, 2026-11-14).** Downloads:
 [Releases](https://github.com/sunskiefer/SQ8LMPC/releases). Tell us how it runs under Issues.
 
 ## What it is
@@ -44,7 +44,7 @@ Unzip `SQ8LMPC-0.1.0-mpc-armv7.zip`, copy the folder to the Force, run `install.
 
 The engine is built for ARMv7 with the original's x87 rounding emulated, and its correctly rounded math (CORE-MATH)
 matches the native build bit for bit. It is run under QEMU. Program select, pages, knobs, SAVE, reload and drop-in banks are exercised offline
-(`tests/`). It has not been run on a Force yet; `tested.json` stays empty until it has.
+(`tests/`). It has been run on an Akai Force (MPC OS 3.9.1, 2026-11-14); see `tested.json`.
 
 ## Building
 
