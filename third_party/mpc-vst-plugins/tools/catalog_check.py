@@ -20,13 +20,18 @@ import zipfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import skin_compat  # noqa: E402
+from user_files import user_files_problems  # noqa: E402
+import deps  # noqa: E402
 
 MAX_GLIBC_GEN2 = (2, 39)   # aarch64 (Gen2) runs MPC OS 3.x only, which has glibc 2.39, so there is no 2.x ceiling to respect
 MAX_GLIBC = (2, 36)   # the newest glibc a catalog plugin may need: MPC OS 3.x and the Force have 2.39, the catalog toolchain (arm32v7/gcc:12) is 2.36.
 # Above skin_compat.MAX_GLIBC_2X (2.32, MPC OS 2.x) it is listed as MPC OS 3.x only; it is not rejected.
 SEMVER = re.compile(r"\d+\.\d+\.\d+")
 ID = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
-ADDIN_KEYS = ("ADDIN_ID", "ADDIN_NAME", "ADDIN_SO", "ADDIN_CONF", "ADDIN_FILES", "ADDIN_DONE", "ADDIN_NETWORK", "ADDIN_VERSION")
+ADDIN_KEYS = ("ADDIN_ID", "ADDIN_NAME", "ADDIN_SO", "ADDIN_CONF", "ADDIN_FILES", "ADDIN_DONE", "ADDIN_NETWORK", "ADDIN_VERSION",
+              "ADDIN_LOGIN", "ADDIN_WEB_PORT", "ADDIN_WEB_PORT_SETTING", "ADDIN_WEB_PATH")
+# ADDIN_WEB_PATH: /seg/ or /seg/seg/ (letters, digits . _ ~ -), no empty, . or .. segments (docs/ADDINS.md, "Declaring a web page")
+ADDIN_WEB_PATH = re.compile(r"/(?:(?!\.\.?/)[A-Za-z0-9._~-]+/)+")
 ADDIN_SCRIPTS = ("install.sh", "uninstall.sh", "addin-lib.sh")
 ADDIN_FILE = re.compile(r"[A-Za-z0-9_-][A-Za-z0-9._-]*")
 
@@ -107,10 +112,10 @@ RISKY_CALLS = {
 }
 
 
-def imported_symbols(d):
-    """The undefined (imported) names in an ELF file's dynamic symbol table: what it asks the system for. Empty if not ELF."""
+def dynamic_symbols(d):
+    """[(name, defined, bind, type)] from an ELF file's dynamic symbol table. Empty if not ELF."""
     if d[:4] != b"\x7fELF":
-        return set()
+        return []
     bits64, bo = d[4] == 2, ("little" if d[5] == 1 else "big")
     n = lambda o, k: int.from_bytes(d[o:o + k], bo)
     shoff, shentsize, shnum = (n(40, 8), n(58, 2), n(60, 2)) if bits64 else (n(32, 4), n(46, 2), n(48, 2))
@@ -119,17 +124,46 @@ def imported_symbols(d):
         o = shoff + k * shentsize
         secs.append((n(o + 4, 4), n(o + 24, 8), n(o + 32, 8), n(o + 40, 4)) if bits64 else
                     (n(o + 4, 4), n(o + 16, 4), n(o + 20, 4), n(o + 24, 4)))
-    out = set()
+    out = []
     for sh_type, off, size, link in secs:
         if sh_type != 11 or link >= len(secs):   # SHT_DYNSYM, names in its linked string table
             continue
         stroff, ent = secs[link][1], (24 if bits64 else 16)
         for o in range(off + ent, off + size, ent):   # entry 0 is the null symbol
-            if n(o + (6 if bits64 else 14), 2) != 0:   # defined here, not imported
-                continue
+            info = d[o + (4 if bits64 else 12)]
             name_off = stroff + n(o, 4)
-            out.add(d[name_off:d.index(b"\0", name_off)].decode(errors="replace"))
+            out.append((d[name_off:d.index(b"\0", name_off)].decode(errors="replace"),
+                        n(o + (6 if bits64 else 14), 2) != 0, info >> 4, info & 0xf))
     return out
+
+
+def imported_symbols(d):
+    """The undefined (imported) names in an ELF file's dynamic symbol table: what it asks the system for. Empty if not ELF."""
+    return {name for name, defined, _, _ in dynamic_symbols(d) if not defined}
+
+
+# What a statically linked C/C++ runtime exports from a library built without -fvisibility=hidden: never something MPC's own code is
+# being replaced with, and shared by every such addin, so not a hook.
+RUNTIME_PREFIXES = ("_ZNSt", "_ZNKSt", "_ZSt", "_ZNSs", "_ZNKSs", "_ZNSi", "_ZNSo", "_ZN9__gnu_cxx", "_ZNK9__gnu_cxx", "_ZN10__cxxabiv1",
+                    "_ZNK10__cxxabiv1", "_ZdlPv", "_ZdaPv", "_Znwj", "_Znwm", "_Znaj", "_Znam",
+                    "__cxa_", "__gxx_", "__gnu_", "_Unwind_", "__aeabi_", "__gcc_", "__cxx")
+
+
+def exported_functions(d):
+    """The functions an ELF file defines for others (global or weak; not the linker's _init/_fini, data, or a bundled C++ runtime's
+    RUNTIME_PREFIXES). For a library MPC preloads these are what it replaces in MPC: a name another preloaded library also defines
+    resolves to whichever comes first in LD_PRELOAD."""
+    return {name for name, defined, bind, typ in dynamic_symbols(d)
+            if defined and bind in (1, 2) and typ in (2, 10) and name not in ("_init", "_fini")   # GLOBAL/WEAK; FUNC/IFUNC
+            and not name.startswith(RUNTIME_PREFIXES)}
+
+
+def passes_calls_on(d):
+    """Does a preloaded library look like it hands a hooked call on to the next definition? It must look the next one up (dlsym or
+    dlvsym, as dlsym(RTLD_NEXT, ...) does), and not open libasound itself (dlopen plus the library's name: it would call the real
+    library and skip any addin between). A heuristic from the imports: it says nothing about how each hook is written."""
+    imp = imported_symbols(d)
+    return bool(imp & {"dlsym", "dlvsym"}) and not ("dlopen" in imp and b"libasound.so" in d)
 
 
 def risky_calls(d):
@@ -152,6 +186,28 @@ def parse_addin_manifest(text):
             raise ValueError("addin.manifest line %d is not a plain assignment of a known key: %r" % (n, line))
         v = m.group(2)
         out[m.group(1)] = v[1:-1] if v[:1] in ("'", '"') else v
+    return out
+
+
+def addin_manifest_problems(am):
+    """The values the installer and the gateway read from addin.manifest that parse_addin_manifest doesn't check: a list of
+    problems (empty when fine)."""
+    out = []
+    if am.get("ADDIN_NETWORK", "") not in ("", "0", "1"):
+        out.append("ADDIN_NETWORK must be 1 or empty")
+    if am.get("ADDIN_LOGIN", "") not in ("", "0", "1"):
+        out.append("ADDIN_LOGIN must be 1 or empty")
+    port, setting, path = (am.get(k, "") for k in ("ADDIN_WEB_PORT", "ADDIN_WEB_PORT_SETTING", "ADDIN_WEB_PATH"))
+    if port and not (port.isdigit() and 1 <= int(port) <= 65535):
+        out.append("ADDIN_WEB_PORT must be a port number (1-65535)")
+    if (setting or path) and not port:
+        out.append("ADDIN_WEB_PORT_SETTING and ADDIN_WEB_PATH need ADDIN_WEB_PORT")
+    if setting and not re.fullmatch(r"[A-Za-z0-9_.-]+", setting):
+        out.append("ADDIN_WEB_PORT_SETTING must be a settings key (letters, digits, _ . -)")
+    if setting and not am.get("ADDIN_CONF"):
+        out.append("ADDIN_WEB_PORT_SETTING needs ADDIN_CONF (the settings file it is read from)")
+    if path and not ADDIN_WEB_PATH.fullmatch(path):
+        out.append("ADDIN_WEB_PATH must start and end with / (like /files/), with letters, digits and . _ ~ - between")
     return out
 
 
@@ -223,8 +279,6 @@ def check(zpath, catalog=False, expect_id=None, expect_repo=None, require_portab
         err("kind must be instrument or effect")
     if m["arch"] not in ARCHES:
         err("arch is %s, catalog takes %s" % (m["arch"], " or ".join(ARCHES)))
-    if addin and m["arch"] != "armv7":
-        err("addins are armv7 only for now")
     if m.get("max_glibc"):
         need = tuple(int(x) for x in m["max_glibc"].split(".")[:2])
         limit = MAX_GLIBC_GEN2 if m["arch"] == "aarch64" else MAX_GLIBC
@@ -243,6 +297,8 @@ def check(zpath, catalog=False, expect_id=None, expect_repo=None, require_portab
             (err if catalog else warn)("manifest has no " + k)
     if m.get("source_repo") and not re.fullmatch(r"[\w.-]+/[\w.-]+", m["source_repo"]):
         err("source_repo must be owner/name")
+    for problem in deps.check_lists(m.get("depends"), m.get("conflicts"), m["id"]):   # absent = the registry entry decides (catalog_build.py)
+        err("manifest " + problem)
 
     # payload
     entry = None
@@ -302,6 +358,8 @@ def check(zpath, catalog=False, expect_id=None, expect_repo=None, require_portab
         except ValueError as e:
             err(str(e))
             am = None
+        for problem in addin_manifest_problems(am or {}):
+            err("addin.manifest: " + problem)
         conf, extra = m.get("conf") or "", m.get("files") or []
         own = [m["so"]] + ([conf] if conf else []) + list(extra)
         for f in own:
@@ -311,8 +369,8 @@ def check(zpath, catalog=False, expect_id=None, expect_repo=None, require_portab
                 err("missing " + f)
         if files.get(m["so"], b"\x7fELF")[:4] != b"\x7fELF":
             err(m["so"] + " is not an ELF file")
-        elif m["so"] in files and not arm32(files[m["so"]]):
-            err(m["so"] + " is not a 32-bit ARM library")
+        elif m["so"] in files and not arch_ok(files[m["so"]], m["arch"]):
+            err(m["so"] + " is not a %s library (manifest arch %s)" % ("64-bit ARM" if m["arch"] == "aarch64" else "32-bit ARM", m["arch"]))
         if not m["so"].endswith(".so"):
             err("so must be a .so")
         for f in sorted(set(files) - set(needs) - set(own) - {"mpc-plugin.json"}):
@@ -355,6 +413,35 @@ def check(zpath, catalog=False, expect_id=None, expect_repo=None, require_portab
                 err("plugin-meta.xml uid %r != manifest uid %r" % (attr.get("uid"), m["uid"]))
             if entry and attr.get("name") != m["name"]:
                 err("plugin-meta.xml name doesn't match the manifest")
+            # MPC OS 3.10.1+: "VST2 Plugins/<Manufacturer> - VST - <Name>/plugin.json" (Akai's folder format) lists the plugin
+            pjb = files.get(base + "plugin.json")
+            if pjb is None:
+                (err if m.get("vst2") else warn)("no plugin.json in the plugin folder: MPC OS 3.10.1 and later will not list it from a VST2 Plugins folder")
+            else:
+                try:
+                    pj = json.loads(pjb)
+                except ValueError:
+                    pj = None
+                    err("plugin.json is not valid JSON")
+                if isinstance(pj, dict):
+                    key = "file64" if m["arch"] == "aarch64" else "file32"
+                    if pj.get("format") != "vst2":
+                        warn("plugin.json has no \"format\": \"vst2\" (Akai's plugin.json schema requires it; MPC OS 3.10.1 lists it without, for now)")
+                    if "%s - VST - %s" % (pj.get("manufacturer"), pj.get("name")) != m["skin"]:
+                        err("plugin.json manufacturer/name do not make the folder name %r" % m["skin"])
+                    uid = str(pj.get("uid", ""))
+                    try:
+                        uidn = int(uid, 16) if uid.lower().startswith("0x") else int(uid) if uid.isdigit() else int.from_bytes(uid.encode("latin-1"), "big") if len(uid) == 4 else -1
+                    except ValueError:
+                        uidn = -1
+                    if uidn != int(str(m["uid"]), 16):
+                        err("plugin.json uid %r is not the manifest uid %s" % (uid, m["uid"]))
+                    if pj.get(key) != m["so"]:
+                        err("plugin.json %s must be %r (the .so at the folder root), not %r" % (key, m["so"], pj.get(key)))
+                    if not isinstance(pj.get("numOutputs", 2), int) or pj.get("numOutputs", 2) <= 0:
+                        err("plugin.json numOutputs must be more than 0 (MPC does not list a plugin with none)")
+                    if pj.get("kind", "instrument") not in ("instrument", "effect"):
+                        err("plugin.json kind must be instrument or effect")
             for e in m.get("extras", []):
                 if not re.fullmatch(r"[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*", e) or ".." in e.split("/"):
                     err("bad extra path %r" % e)
@@ -367,6 +454,8 @@ def check(zpath, catalog=False, expect_id=None, expect_repo=None, require_portab
     for d in m.get("user_data", []):
         if not re.fullmatch(r"[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*", d) or ".." in d.split("/"):
             err("bad user_data path %r" % d)
+    for p in user_files_problems(m.get("user_files", []), m.get("user_data", [])):
+        err("user_files: " + p)
     # checksums: every file listed and matching, nothing unlisted
     listed = {}
     for line in files.get("SHA256SUMS", b"").decode().splitlines():
@@ -386,14 +475,13 @@ def check(zpath, catalog=False, expect_id=None, expect_repo=None, require_portab
     # installer: regenerate from the current template and compare (releases of the old layout were made by older templates)
     sub = {"@NAME@": m["name"], "@SO_NAME@": m["so"], "@SKIN@": m.get("skin", ""),
            "@EXTRAS@": " ".join("'%s'" % e for e in m.get("extras", [])), "@VERSION@": m["version"],
-           "@UID@": str(m.get("uid", "")), "@LEGACY_SO@": "/sdcard/vst/" + m["so"], "@USER_DATA@": " ".join(m.get("user_data", []))}
+           "@UID@": str(m.get("uid", "")), "@LEGACY_SO@": "/sdcard/vst/" + posixpath.basename(m["so"]), "@USER_DATA@": " ".join(m.get("user_data", [])),
+           "@RETIRE@": ":".join(m.get("retire", [])), "@ID@": str(m.get("id", ""))}
     for script in ([] if legacy else list(ADDIN_SCRIPTS) if addin else ["install.sh", "uninstall.sh"]):
         tpl = os.path.join(HERE, "release", "addin" if addin else "", script)
         if os.path.exists(tpl) and script in files:
             text = open(tpl).read()
-            for k, v in sub.items():   # same escaping as release.py: inside '...' L'Cronx is written L'\''Cronx
-                if k != "@EXTRAS@":
-                    text = text.replace("'%s'" % k, "'%s'" % v.replace("'", "'\\''"))
+            for k, v in sub.items():
                 text = text.replace(k, v)
             if text.encode() != files[script]:
                 warn("%s differs from this repo's current template (older release tool, or modified): review it" % script)
@@ -436,10 +524,15 @@ def check(zpath, catalog=False, expect_id=None, expect_repo=None, require_portab
         "version": m["version"], "size": os.path.getsize(zpath), "defer": defer,
         "sha256": hashlib.sha256(open(zpath, "rb").read()).hexdigest(),
         "param_compat": m["param_compat"], "max_glibc": m.get("max_glibc"), "cpu": m.get("cpu"),
+        "requires": (m.get("requires") or "").strip(),   # the author's one line of extra requirements (release.py --requires)
         "manifest": m,
     }
     if flags:
         record["flags"] = flags
+    if addin:   # what its preloaded library replaces in MPC (its helper programs don't count); catalog_build.py compares these (hook_overlaps_of)
+        lib = files.get(m.get("so") or "", b"")
+        record["hooks"] = sorted(exported_functions(lib))
+        record["chains"] = passes_calls_on(lib)
     if os_gens is not None:
         record["os_compat"] = os_gens
         if "2.x" not in os_gens:

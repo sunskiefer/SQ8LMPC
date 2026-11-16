@@ -15,9 +15,9 @@ svc() {   # systemctl, or a log line under test
     systemctl "$@"
 }
 
-# MPC's service: acvs on stock firmware, inmusic-mpc on some modified ones.
+# MPC's service: acvs on stock Gen1/Gen2/Force, ac50 on the MPC Sample, inmusic-mpc on some modified ones.
 mpc_service() {
-    for s in acvs inmusic-mpc; do
+    for s in ac50 acvs inmusic-mpc; do
         for d in $UNIT_DIRS; do
             [ -f "$SYSTEMD_ROOT$d/$s.service" ] && { echo "$s"; return; }
         done
@@ -25,7 +25,34 @@ mpc_service() {
     echo acvs
 }
 
-ours() { echo "$SYSTEMD_ROOT/etc/systemd/system/$1.service.d/$DROPIN_NAME"; }   # service
+DROPIN_ROOT=""   # /etc or /run, set once by resolve_dropin_root() before anything calls ours()
+ETC_UPPER=""     # set with it when /etc is a read-only overlay stacked on a writable one: that one's upper layer
+ours_logical() { echo "$SYSTEMD_ROOT$DROPIN_ROOT/systemd/system/$1.service.d/$DROPIN_NAME"; }   # service: as systemd sees it
+ours() {   # service: the file to read and write (in the writable layer under a stacked read-only /etc)
+    if [ -n "$ETC_UPPER" ]; then echo "$SYSTEMD_ROOT$ETC_UPPER/systemd/system/$1.service.d/$DROPIN_NAME"; else ours_logical "$1"; fi
+}
+
+# Where the shared drop-in goes. One already there (from an install earlier in this boot) wins; otherwise /etc if
+# root is writable, or can be made so with a remount; otherwise /run (tmpfs: it does not survive a reboot, so an
+# addin installed this way needs reinstalling after one -- e.g. by re-running install.sh from an autorun stick).
+# Gen2's Live III is the first device seen with no writable /etc at all: a verity rootfs, remount refused outright, and on
+# MPC OS 3.10 an /etc overlay mounted ro (no upper layer),
+# unlike a plain ro mount (which boot_reload_add already handles by remounting around its own, separate write).
+# MPC OS 3.10.1 with Akai's user access on (Key 37, device 2026-11-12): /etc is a writable overlay (upper layer on /data)
+# with a read-only one stacked on top (lowerdir=<user-access etc>:/etc). Only the top mount counts for writing /etc, so
+# the drop-in is written in the writable overlay's upper layer instead (etc_stacked_upper), where it persists.
+resolve_dropin_root() {   # service
+    up=$(etc_stacked_upper) || up=""
+    if [ -f "$SYSTEMD_ROOT/etc/systemd/system/$1.service.d/$DROPIN_NAME" ] \
+        || { [ -n "$up" ] && [ -f "$SYSTEMD_ROOT$up/systemd/system/$1.service.d/$DROPIN_NAME" ]; }; then
+        DROPIN_ROOT=/etc; ETC_UPPER=$up; return
+    fi
+    if [ -f "$SYSTEMD_ROOT/run/systemd/system/$1.service.d/$DROPIN_NAME" ]; then DROPIN_ROOT=/run; return; fi
+    if [ -n "$up" ]; then DROPIN_ROOT=/etc; ETC_UPPER=$up
+    elif ! root_ro || etc_overlay_rw; then DROPIN_ROOT=/etc
+    elif remount_root rw; then remount_root ro; DROPIN_ROOT=/etc
+    else DROPIN_ROOT=/run; fi
+}
 writable() {   # file: can it be replaced? A probe file, since busybox's [ -w ] says yes to root on a read-only mount
     w="$(dirname "$1")/.mpc-addins-probe.$$"
     [ -w "$1" ] && (: > "$w") 2>/dev/null && rm -f "$w"
@@ -40,7 +67,7 @@ unit_with_preload() {
         if [ -f "$f" ]; then grep -q '^Environment=.*LD_PRELOAD=' "$f" && found="$f"; break; fi
     done
     for f in $(for d in $UNIT_DIRS; do ls "$SYSTEMD_ROOT$d/$1.service.d/"*.conf 2>/dev/null; done | awk -F/ '{print $NF "\t" $0}' | sort | cut -f2); do
-        [ "$f" = "$2" ] && continue
+        [ "$f" = "$2" ] || [ "$f" = "$(ours_logical "$1")" ] && continue   # our drop-in, also as seen through a stacked /etc
         grep -q '^Environment=.*LD_PRELOAD=' "$f" && found="$f"   # drop-ins apply in name order
     done
     echo "$found"
@@ -99,11 +126,12 @@ sync_ours() {   # service add-so remove-so
         [ -n "$e" ] && [ "$e" != "$3" ] && ! in_list "$base" "$e" && ! in_list "$new" "$e" && new="$new${new:+:}$e"
     done
     IFS=$IFS0
-    if [ -z "$new" ]; then rm -f "$f"; rmdir "$(dirname "$f")" 2>/dev/null || true; return 0; fi
+    if [ -z "$new" ]; then rm -f "$f"; rmdir "$(dirname "$f")" 2>/dev/null || true; etc_refresh; return 0; fi
     mkdir -p "$(dirname "$f")"
     printf '[Service]\n# MPC addins (mpc-vst-plugins addin installer). systemd replaces LD_PRELOAD, so this repeats the base list from\n# the unit, then the addins. Edit with install.sh / uninstall.sh, which rebuild it when the base changes.\n# lib: %s\n# base: %s\nEnvironment=LD_PRELOAD=%s\n' \
         "$ADDIN_LIB_VERSION" "$base" "$base${base:+:}$new" > "$f.new"
     mv "$f.new" "$f"
+    etc_refresh
 }
 
 lib_of() { [ ! -f "$1" ] || sed -n 's/^# lib: *\([0-9][0-9]*\).*/\1/p' "$1" | head -n 1; }   # drop-in: its format version
@@ -123,8 +151,14 @@ preload_add() {   # service unit so
         grep -qF "$3" "$2" || { mv "$2.prev" "$2"; echo "error: editing $2 failed; restored" >&2; exit 1; }
         rm -f "$2.prev"
     else
+        f=$(ours "$1")
+        was_ro=0; [ "$DROPIN_ROOT" = /etc ] && [ -z "$ETC_UPPER" ] && root_ro && ! etc_overlay_rw && was_ro=1
+        if [ $was_ro = 1 ] && ! remount_root rw; then die "/ is read-only and could not be remounted: can't write $f"; fi
         sync_ours "$1" "$3" ""
-        grep -qF "$3" "$(ours "$1")" || { echo "error: writing $(ours "$1") failed" >&2; exit 1; }
+        sync
+        [ $was_ro = 0 ] || remount_root ro || echo "warning: / is still writable; it is read-only again after a reboot" >&2
+        [ "$DROPIN_ROOT" != /run ] || echo "warning: $f is on /run (tmpfs): not persistent, reinstall after a reboot" >&2
+        grep -qF "$3" "$f" || { echo "error: writing $f failed" >&2; exit 1; }
     fi
 }
 
@@ -132,11 +166,17 @@ preload_remove() {   # service so: out of every writable file that lists it, the
     o=$(ours "$1")
     for d in $UNIT_DIRS; do
         for f in "$SYSTEMD_ROOT$d/$1.service" "$SYSTEMD_ROOT$d/$1.service.d/"*.conf; do
-            [ -f "$f" ] && [ "$f" != "$o" ] && grep -qF "$2" "$f" || continue
+            [ -f "$f" ] && [ "$f" != "$o" ] && [ "$f" != "$(ours_logical "$1")" ] && grep -qF "$2" "$f" || continue
             if writable "$f"; then edit_preload "$f" remove "$2"; else echo "warning: $f lists $2 but is read-only" >&2; fi
         done
     done
-    [ ! -f "$o" ] || sync_ours "$1" "" "$2"
+    if [ -f "$o" ]; then
+        was_ro=0; [ "$DROPIN_ROOT" = /etc ] && [ -z "$ETC_UPPER" ] && root_ro && ! etc_overlay_rw && was_ro=1
+        if [ $was_ro = 1 ] && ! remount_root rw; then die "/ is read-only and could not be remounted: can't update $o"; fi
+        sync_ours "$1" "" "$2"
+        sync
+        [ $was_ro = 0 ] || remount_root ro || echo "warning: / is still writable; it is read-only again after a reboot" >&2
+    fi
 }
 
 # After a reboot. Where /etc is an overlay that systemd mounts itself (etc.mount, a few seconds into boot, on MPC OS 3.x),
@@ -148,9 +188,43 @@ BOOT_UNIT=mpc-addins-reload.service
 BOOT_MARK="mpc-vst-plugins addin installer"
 ADDIN_MOUNTS="${ADDIN_MOUNTS:-/proc/mounts}"
 etc_overlay() { awk '$2 == "/etc" && $3 == "overlay" { f = 1 } END { exit !f }' "$ADDIN_MOUNTS" 2>/dev/null; }
+# An /etc overlay can be written only when it is mounted rw (it has an upper layer), and only the top /etc mount counts
+# (the last one in the mounts file). MPC OS 3.10 on the Live III mounts it ro with lower layers only (verified 2026-11-03):
+# then the drop-in goes to /run like on any other read-only /etc.
+etc_overlay_rw() { awk '$2 == "/etc" { t = $3; o = $4 } END { exit !(t == "overlay" && o ~ /(^|,)rw(,|$)/) }' "$ADDIN_MOUNTS" 2>/dev/null; }
+# A read-only /etc overlay stacked on a writable /etc overlay (its lowerdir includes /etc): print the writable one's upper
+# layer, the place to write /etc files that persist and show through. Fails when /etc is not stacked like that.
+# /proc/mounts escapes a space, tab, newline and backslash in a path as \040, \011, \012 and \134: decoded here.
+etc_stacked_upper() {
+    awk '$2 == "/etc" { n++; t[n] = $3; o[n] = $4 }
+        END {
+            if (n < 2 || t[n] != "overlay" || o[n] !~ /(^|,)ro(,|$)/ || o[n] !~ /lowerdir=([^,]*:)?\/etc(:|,|$)/) exit 1
+            for (i = n - 1; i >= 1; i--)
+                if (t[i] == "overlay" && o[i] ~ /(^|,)rw(,|$)/ && match(o[i], /upperdir=[^,]*/)) {
+                    u = substr(o[i], RSTART + 9, RLENGTH - 9)
+                    gsub(/\\040/, " ", u); gsub(/\\011/, "\t", u); gsub(/\\012/, "\n", u); gsub(/\\134/, "\\", u)
+                    print u; exit 0
+                }
+            exit 1
+        }' "$ADDIN_MOUNTS" 2>/dev/null
+}
+# After writing in a stacked /etc's writable layer: the read-only overlay on top keeps its cached view of the old file
+# until the kernel drops its dentries (seen on the Key 37, 2026-11-12), and systemd reads through that view.
+# drop_caches=2 frees the whole system's reclaimable dentries and inodes, not just this file's, and it runs while MPC is
+# still up (the drop-in is written before the restart). With the default restart MPC goes down right after anyway; with
+# -n (no restart) a short stall in a playing MPC is possible, so batch callers should run it with MPC stopped.
+etc_refresh() {
+    [ -n "$ETC_UPPER" ] || return 0
+    if [ -n "$ADDIN_INSTALL_TEST" ]; then echo "drop_caches" >> "${ADDIN_TEST_LOG:-/dev/null}"; return 0; fi
+    sync; echo 2 > /proc/sys/vm/drop_caches 2>/dev/null || true
+}
 root_ro() { awk '$2 == "/" && $4 ~ /(^|,)ro(,|$)/ { f = 1 } END { exit !f }' "$ADDIN_MOUNTS" 2>/dev/null; }
-remount_root() {   # rw | ro (logged under test)
-    if [ -n "$ADDIN_INSTALL_TEST" ]; then echo "mount -o remount,$1 /" >> "${ADDIN_TEST_LOG:-/dev/null}"; return 0; fi
+remount_root() {   # rw | ro (logged under test; ADDIN_REMOUNT_FAILS=1 simulates a verity root that refuses it)
+    if [ -n "$ADDIN_INSTALL_TEST" ]; then
+        echo "mount -o remount,$1 /" >> "${ADDIN_TEST_LOG:-/dev/null}"
+        [ "$1" = rw ] && [ -n "${ADDIN_REMOUNT_FAILS:-}" ] && return 1
+        return 0
+    fi
     mount -o remount,"$1" /
 }
 boot_unit_text() {   # service
@@ -163,7 +237,8 @@ boot_paths() {   # service: sets BU (the unit) and BW (its link in the service's
     BU="$SYSTEMD_ROOT/usr/lib/systemd/system/$BOOT_UNIT"; BW="$SYSTEMD_ROOT/usr/lib/systemd/system/$1.service.wants/$BOOT_UNIT"
 }
 boot_reload_add() {   # service: when the shared drop-in is in use on an /etc overlay
-    [ -f "$(ours "$1")" ] && etc_overlay || return 0
+    [ -f "$(ours "$1")" ] || return 0
+    etc_overlay_rw || [ -n "$ETC_UPPER" ] || return 0
     boot_paths "$1"
     if [ -f "$BU" ] && [ "$(cat "$BU")" = "$(boot_unit_text "$1")" ] && [ -L "$BW" ]; then return 0; fi
     if [ -f "$BU" ] && ! grep -qF "$BOOT_MARK" "$BU"; then echo "warning: $BU exists and was not written by this installer: left alone" >&2; return 0; fi
@@ -200,12 +275,20 @@ boot_reload_remove() {   # service: once the shared drop-in is gone (the last ad
 #   ADDIN_FILES   other files, replaced on every install ("" none)
 #   ADDIN_DONE    a line printed after installing ("" none)
 #   ADDIN_NETWORK 1 if ADDIN_CONF has a bind= setting: a first interactive install asks whether to open it to the network ("" or 0 none)
+#   ADDIN_LOGIN   1 if what it serves asks for a password (the network question then says so) ("" or 0 none)
+#   ADDIN_WEB_PORT, ADDIN_WEB_PORT_SETTING, ADDIN_WEB_PATH  the web page it serves on 127.0.0.1, for the gateway addin's
+#                 start page and routes (docs/ADDINS.md, "Declaring a web page"); the installer only checks them ("" none)
 #   ADDIN_VERSION X.Y.Z, written by tools/release_addin.py ("" for a build that was not released)
 # Only plain assignments: tools/catalog_check.py refuses a manifest with anything else in it.
-SELF_FILES="addin.manifest addin-lib.sh uninstall.sh"   # copied into the folder too, so it can remove itself
+SELF_FILES="addin.manifest addin-lib.sh uninstall.sh install.sh mpc-plugin.json"   # copied into the folder too, so it
+    # can remove itself, and reinstall itself (needed on a device with no persistent /etc: the LD_PRELOAD drop-in
+    # goes in /run, wiped by a reboot, so sh /data/mpc-addins/<id>/install.sh -y -n redoes it without the release
+    # zip; mpc-plugin.json travels with it so the arch check still has the right PKG_ARCH). The USB stick's run.sh
+    # (docs/USB_STICK.md) does this for every installed addin on each boot it is inserted for.
 load_manifest() {
     [ -f addin.manifest ] || die "addin.manifest is missing next to install.sh"
     ADDIN_ID=""; ADDIN_NAME=""; ADDIN_SO=""; ADDIN_CONF=""; ADDIN_FILES=""; ADDIN_DONE=""; ADDIN_NETWORK=""; ADDIN_VERSION=""
+    ADDIN_LOGIN=""; ADDIN_WEB_PORT=""; ADDIN_WEB_PORT_SETTING=""; ADDIN_WEB_PATH=""
     . ./addin.manifest
     case "$ADDIN_ID" in ""|*[!A-Za-z0-9_-]*) die "addin.manifest: bad ADDIN_ID '$ADDIN_ID'" ;; esac
     for f in "$ADDIN_SO" $ADDIN_CONF $ADDIN_FILES; do
@@ -216,6 +299,15 @@ load_manifest() {
         case " $SELF_FILES " in *" $f "*) die "addin.manifest: $f is the installer's own file" ;; esac
     done
     case "$ADDIN_NETWORK" in ""|0|1) ;; *) die "addin.manifest: ADDIN_NETWORK must be 1 or empty" ;; esac
+    case "$ADDIN_LOGIN" in ""|0|1) ;; *) die "addin.manifest: ADDIN_LOGIN must be 1 or empty" ;; esac
+    case "$ADDIN_WEB_PORT" in "") ;; *[!0-9]*) die "addin.manifest: ADDIN_WEB_PORT must be a port number" ;; *)
+        [ "$ADDIN_WEB_PORT" -ge 1 ] && [ "$ADDIN_WEB_PORT" -le 65535 ] || die "addin.manifest: ADDIN_WEB_PORT must be a port number" ;;
+    esac
+    case "$ADDIN_WEB_PORT_SETTING" in *[!A-Za-z0-9_.-]*) die "addin.manifest: bad ADDIN_WEB_PORT_SETTING" ;; esac
+    case "$ADDIN_WEB_PATH" in ""|/*/) ;; *) die "addin.manifest: ADDIN_WEB_PATH must start and end with /" ;; esac
+    case "$ADDIN_WEB_PATH" in *//*|*[!A-Za-z0-9/._~-]*|*/./*|*/../*) die "addin.manifest: bad ADDIN_WEB_PATH" ;; esac
+    [ -n "$ADDIN_WEB_PORT" ] || [ -z "$ADDIN_WEB_PORT_SETTING$ADDIN_WEB_PATH" ] ||
+        die "addin.manifest: ADDIN_WEB_PORT_SETTING and ADDIN_WEB_PATH need ADDIN_WEB_PORT"
     case "$ADDIN_VERSION" in ""|[0-9]*.[0-9]*.[0-9]*) ;; *) die "addin.manifest: bad ADDIN_VERSION '$ADDIN_VERSION'" ;; esac
     case "$ADDIN_VERSION" in *[!0-9.]*) die "addin.manifest: bad ADDIN_VERSION '$ADDIN_VERSION'" ;; esac
     [ -n "$ADDIN_NAME" ] || ADDIN_NAME="$ADDIN_ID"
@@ -241,9 +333,12 @@ remove_files() {
 check_so() {   # file
     set -- $(dd if="$1" bs=20 count=1 2>/dev/null | od -b | sed 's/^[0-7]*//')
     [ $# -ge 20 ] && [ "$1 $2 $3 $4" = "177 105 114 106" ] || die "$ADDIN_SO is not an ELF file"
-    [ "$5 $6" = "001 001" ] || die "$ADDIN_SO is not a 32-bit little-endian library"
     [ "${17} ${18}" = "003 000" ] || die "$ADDIN_SO is not a shared library"
-    [ "${19} ${20}" = "050 000" ] || die "$ADDIN_SO is not built for ARM"
+    case "$5 $6 ${19} ${20}" in
+        "001 001 050 000") ;;   # 32-bit little-endian, EM_ARM: Gen1 (Force, MPC Live/One/X/Key 61/Key 37)
+        "002 001 267 000") ;;   # 64-bit little-endian, EM_AARCH64: Gen2 (Live III, One G2, Key(s) G2)
+        *) die "$ADDIN_SO is not a 32-bit ARM or 64-bit AArch64 shared library" ;;
+    esac
 }
 
 # MockbaMod (and mods like it) launch MPC from their own boot script, which exports LD_PRELOAD from a file that the
@@ -299,7 +394,7 @@ check_loaded() {   # so
     [ -z "$ADDIN_INSTALL_TEST" ] || return 0
     i=0
     while [ $i -lt 40 ]; do
-        pid=$(pidof MPC 2>/dev/null | awk '{print $1}')
+        pid=$({ pidof MPC || pidof "MPC Sample"; } 2>/dev/null | awk '{print $1}')
         if [ -n "$pid" ] && [ -r "/proc/$pid/environ" ]; then
             tr '\0' '\n' < "/proc/$pid/environ" | grep -q '^LD_PRELOAD=' && break
         fi
@@ -315,8 +410,14 @@ check_loaded() {   # so
 # A first install of an addin that listens on the network asks whether to open it (bind=0.0.0.0); -y leaves the safe default.
 ask_bind() {   # conf-file
     [ "$ADDIN_NETWORK" = 1 ] && [ $YES = 0 ] && [ -f "$1" ] && grep -q '^bind=127.0.0.1' "$1" || return 0
-    echo "$ADDIN_NAME listens on this device only (reach it through an SSH tunnel). It has no login: opened to the network,"
-    printf "anyone who can reach the port gets what it offers (docs/ADDINS.md). Open it to the network? [y/N] "; read -r ok
+    if [ "$ADDIN_LOGIN" = 1 ]; then
+        echo "$ADDIN_NAME listens on this device only (reach it through an SSH tunnel). It asks for a password: opened to the"
+        printf "network, anyone who can reach it can try to log in (docs/ADDINS.md). Open it to the network? [y/N] "
+    else
+        echo "$ADDIN_NAME listens on this device only (reach it through an SSH tunnel). It has no login: opened to the network,"
+        printf "anyone who can reach the port gets what it offers (docs/ADDINS.md). Open it to the network? [y/N] "
+    fi
+    read -r ok
     case "$ok" in y|Y|yes) sed -i 's/^bind=.*/bind=0.0.0.0/' "$1"; echo "  bind=0.0.0.0" ;; esac
     return 0
 }
