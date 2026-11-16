@@ -42,12 +42,16 @@ def sprite(name, fw, fh):
 def glow_rgba(frame, size, glow=0.9, radius=1.6):
     """an original sprite frame (light on black) redrawn at `size`, crisp and bright so it reads, with a soft glow:
     the colour stays the original's, the darkest unlit segments stay faintly visible (the back-screen look)"""
-    up = frame.resize((size[0] * 3, size[1] * 3), Image.BICUBIC)
-    a = np.asarray(up, np.float32) / 255.0
+    # The original is a pixel font: every lit pixel becomes a square dot (nearest), so the single-pixel diagonals of
+    # V, W, X and Y (drawn fainter than the straight segments) stay a staircase that reads, instead of melting into blobs.
+    a0 = np.asarray(frame, np.float32) / 255.0
+    lum0 = a0.max(axis=2)
+    t0 = np.clip((lum0 - 0.22) / 0.25, 0, 1) ** 0.5    # faint diagonal pixels (~0.3-0.6) are lit nearly as much as the main strokes
+    lit = np.asarray(Image.fromarray((t0 * 255).astype(np.uint8)).resize((size[0] * 3, size[1] * 3), Image.NEAREST), np.float32) / 255.0
+    lit = np.asarray(Image.fromarray((lit * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.6)), np.float32) / 255.0
+    lit = np.clip(lit * 1.15, 0, 1)                 # a touch of softening at the dot edges only
+    a = np.asarray(frame.resize((size[0] * 3, size[1] * 3), Image.BICUBIC), np.float32) / 255.0
     lum = a.max(axis=2)
-    t = np.clip((lum - 0.30) / 0.35, 0, 1)
-    lit = t * t * (3 - 2 * t)                       # crisp lit segments
-    lit = ndimage.maximum_filter(lit, size=3)       # a little bolder so it reads on the Force
     ghost = np.clip(lum, 0, 0.30) * 0.55            # faint unlit segments
     core = np.asarray(Image.fromarray((lit * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(radius * 3.2)), np.float32) / 255.0
     hot = a[lum > 0.6]
@@ -334,8 +338,8 @@ def vfd_strip(sk, cw, ch):
     if name in sk.used:
         return name
     fr = sprite("charGIF", 11, 18)
-    gh = ch - 2
-    gw = R(gh * 11 / 18)
+    k = max(1, (ch - 2) // 18)                      # whole-pixel scale of the 11 x 18 font (2x in a 24 x 40 cell)
+    gh, gw = 18 * k, 11 * k
     strip = Image.new("RGBA", (cw, ch * len(fr)), (0, 0, 0, 0))
     for i, f in enumerate(fr):
         g = glow_rgba(f, (gw, gh))
