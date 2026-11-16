@@ -1,13 +1,20 @@
 # SQ8LMPC user guide
 
-SQ8LMPC 0.1.0. The sound engine, panel and factory sounds are SQ8L by Siegfried Kullmann (see the README for credits).
+SQ8LMPC 0.2.0. The sound engine, panel and factory bank C are SQ8L by Siegfried Kullmann (see the README for credits).
+
+## Before anything: the ROM
+
+The plugin makes no sound until your own copy of the SQ-80 wave ROM is in `data/ROM/SQ80.ROM` inside the plugin folder
+on the device (raw image, exactly 262,144 bytes). Until then the display reads `NO ROM` and the output is silent.
+Reload the plugin after copying it. The SQ-80 factory sounds (bank D) are not shipped either: drop your copy into
+`data/Banks/` and press LOAD.
 
 ## The screen
 
 Everything is on one screen:
 
 - **Program** (top left): the bank letter and number, and the sound's name beside it. **up / down** step through sounds;
-  **BANK** moves to the next bank (A, B user; C, D factory).
+  **BANK** moves to the next bank (A, B user; C factory; D empty until you load the SQ-80 sounds).
 - **SAVE** writes the current sound into banks A or B. On banks C and D the display shows `** BANK C/D IS FACTORY **`
   and nothing is written. **INIT** loads the initial sound. **EXP** writes the sound as a `.syx` in `data/Export/`.
   **LOAD** steps through the drop-in banks in `data/Banks/`.
