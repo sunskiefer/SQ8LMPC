@@ -1,0 +1,6 @@
+[
+  { "path": "data/ROM", "label": "SQ-80 wave ROM",
+    "description": "The SQ-80 wave ROM image the synth plays from. Not shipped: bring your own, legally obtained copy.",
+    "hint": "A raw 256 KiB wave ROM image; it is saved as SQ80.ROM.",
+    "rules": [ { "label": "SQ-80 wave ROM (raw, 256 KiB)", "ext": [".ROM", ".rom", ".bin", ".BIN"], "size": 262144, "save_as": "SQ80.ROM" } ] }
+]

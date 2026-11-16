@@ -1,18 +1,26 @@
 // SQ-80 wave ROM and wavesample lookup (original units wavrom, docWaveParams).
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 namespace sq8l {
 
 namespace data {
-extern const uint8_t kWaveRom[0x40000];
+// The SQ-80 wave ROM (256 KiB). Not part of the build: it is read from data/ROM/SQ80.ROM at
+// start (loadWaveRom) and stays all zero, so the synth is silent, until a ROM is loaded.
+extern uint8_t kWaveRom[0x40000];
 extern const uint8_t kWaveKeyMap[1200];
 extern const uint8_t kWaveSampleRecords[604];
 }  // namespace data
 
 constexpr int kNumWaves = 75;
 constexpr uint32_t kWaveRomSize = 0x40000;
+
+// Loads the raw 262144-byte wave ROM image (the layout the original decompresses at load).
+// Any other size is refused and the buffer is left as it was. Returns true when loaded.
+bool loadWaveRom(const uint8_t* data, size_t size);
+bool waveRomLoaded();
 
 // Wavesample record for a wave at a MIDI key (FUN_00455f84): page = ROM address
 // bits 15..8, waveReg = DOC 5503 wavetable register (bank, table size, resolution).

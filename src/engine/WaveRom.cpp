@@ -1,6 +1,25 @@
 #include "WaveRom.h"
 
+#include <cstring>
+
 namespace sq8l {
+
+namespace data {
+alignas(16) uint8_t kWaveRom[0x40000] = {0};
+}  // namespace data
+
+namespace {
+bool gRomLoaded = false;
+}
+
+bool loadWaveRom(const uint8_t* data, size_t size) {
+    if (!data || size != kWaveRomSize) return false;
+    std::memcpy(data::kWaveRom, data, kWaveRomSize);
+    gRomLoaded = true;
+    return true;
+}
+
+bool waveRomLoaded() { return gRomLoaded; }
 
 WaveSample waveSample(uint32_t wave, int32_t key) {
     if (wave >= static_cast<uint32_t>(kNumWaves)) return {0, 0};
