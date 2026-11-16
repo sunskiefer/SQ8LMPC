@@ -26,6 +26,7 @@ extern "C" {
 
 #include "EditBuffer.h"
 #include "Synth.h"
+#include "WaveRom.h"
 #include "controls/LcdDisplay.h"
 #include "logic/LcdControl.h"
 #include "Sprite.h"
@@ -155,6 +156,8 @@ public:
         }
         if (!base_.empty() && !(makeDirs(base_ + "/User") && makeDirs(base_ + "/Banks") && makeDirs(base_ + "/Export")))
             base_.clear();   // read-only card: the plugin still plays, it just cannot save
+        if (!base_.empty()) makeDirs(base_ + "/ROM");
+        loadRom();
 
         synth_ = std::make_unique<Synth>(44100.0f, nullptr, nullptr, this);
         synth_->setOutputCut(kDefaultOutputCutDb);
@@ -196,9 +199,13 @@ public:
     void render(int16_t* out, int frames) {
         if (frames > 128) frames = 128;
         synth_->process(l_, r_, frames);
-        for (int i = 0; i < frames; i++) {
-            out[2 * i] = toS16(l_[i]);
-            out[2 * i + 1] = toS16(r_[i]);
+        if (!rom_) {   // no wave ROM: the engine runs (pages, programs, saving all work) but stays silent
+            for (int i = 0; i < 2 * frames; i++) out[i] = 0;
+        } else {
+            for (int i = 0; i < frames; i++) {
+                out[2 * i] = toS16(l_[i]);
+                out[2 * i + 1] = toS16(r_[i]);
+            }
         }
         tickFrames_ += frames;
         while (tickFrames_ >= 882) {   // 20 ms: the original's display timer (message timeouts)
@@ -262,7 +269,13 @@ public:
     void lcdKnobRange(int knob, int mn, int mx, bool) override {
         if (knob >= 0 && knob < 10) { kmin_[knob] = mn; kmax_[knob] = mx; }
     }
-    void lcdDrawn() override { lcd_->writeText(0, 1, synth_->editBuffer().modified() ? "*C*" : "   ", 0); }
+    void lcdDrawn() override {
+        lcd_->writeText(0, 1, synth_->editBuffer().modified() ? "*C*" : "   ", 0);
+        if (!rom_) {   // keeps the notice on the display whatever the page or message draws
+            lcd_->writeText(0, 0, "NO ROM  COPY SQ80 ROM FILE 262144 BYTES TO  ", 0);
+            lcd_->writeText(0, 1, "THE DATA ROM FOLDER OF THE PLUGIN AND RELOAD", 0);
+        }
+    }
     void lcdParamMouseDown(int) override {}
     void lcdHint(int) override {}
     void lcdSaveMouse() override {}
@@ -464,6 +477,17 @@ private:
         message("** Program exported **", "EXPORT FOLDER");
     }
 
+    // ---- the wave ROM (data/ROM/SQ80.ROM, 262144 bytes; not shipped with the plugin)
+    void loadRom() {
+        rom_ = false;
+        if (base_.empty()) return;
+        std::vector<uint8_t> bytes;
+        static const char* names[] = {"SQ80.ROM", "sq80.rom", "SQ80.rom", "SQ80.BIN", "sq80.bin"};
+        for (const char* n : names) {
+            if (readFile(base_ + "/ROM/" + n, bytes) && loadWaveRom(bytes.data(), bytes.size())) { rom_ = true; return; }
+        }
+    }
+
     // ---- bank sets (drop-in files)
     void scanPacks() {
         packs_.clear();
@@ -556,6 +580,7 @@ private:
     std::unique_ptr<Synth> synth_;
     std::unique_ptr<gui::Sprite> stub_;
     std::unique_ptr<gui::LcdDisplay> lcd_;
+    bool rom_ = false;
     std::unique_ptr<gui::LcdController> ctr_;
     std::unique_ptr<Worker> worker_;
     std::vector<Pack> packs_;

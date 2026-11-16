@@ -19,7 +19,7 @@ namespace sq8l {
 
 namespace data {
 extern const uint8_t kFactoryBankC[128][kProgramSize];
-extern const uint8_t kFactoryBankD[40][kProgramSize];
+// Bank D (the SQ-80 factory sounds) is not built in: drop the file into data/Banks instead.
 }  // namespace data
 
 class SoundLibrary {
@@ -28,7 +28,6 @@ public:
     static constexpr int kBankSize = 128;
     static constexpr int kNumBanks = 4;
     static constexpr int kNumUserPrograms = 256;  // banks A, B (writable)
-    static constexpr int kFactoryD = 40;          // used slots of bank D
     static constexpr size_t kHeaderSize = 0x3c;
     static constexpr size_t kLibraryFileSize = 0x21c3c;  // header + 256 programs
     static constexpr size_t kBankFileSize = 0x10e3c;     // header + 128 programs
