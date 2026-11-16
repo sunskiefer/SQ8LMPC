@@ -15,8 +15,7 @@ through [mpc-vst-plugins](https://github.com/sd88me/mpc-vst-plugins)). Based on
 > object, open an issue and ask for a private contact: it will be removed. See [Credits](#credits) and
 > [LICENSES.md](LICENSES.md).
 
-**Status: 0.1.0 was tested on an Akai Force (MPC OS 3.9.1, 2026-11-14); 0.2.0 is tested offline (bit-identical audio
-to 0.1.0 under QEMU) and not yet on a Force.** Downloads:
+**Status: tested on an Akai Force (MPC OS 3.9.1, 2026-11-16).** Downloads:
 [Releases](https://github.com/sunskiefer/SQ8LMPC/releases). Tell us how it runs under Issues.
 
 ## What it is
@@ -63,7 +62,7 @@ This repository does not link to, and its issues will not point to, any source f
 The engine is built for ARMv7 with the original's x87 rounding emulated, and its correctly rounded math (CORE-MATH)
 matches the native build bit for bit. It is run under QEMU. Program select, pages, knobs, SAVE, reload and drop-in banks are exercised offline
 (`tests/`). 0.2.0's audio with the ROM file is byte-identical to 0.1.0's (`tests/pcm.cpp`), and without it the output
-is all zero (`tests/romcheck.cpp`). 0.1.0 has been run on an Akai Force (MPC OS 3.9.1, 2026-11-14); see `tested.json`.
+is all zero (`tests/romcheck.cpp`). 0.2.0 has been run on an Akai Force (MPC OS 3.9.1, 2026-11-16); see `tested.json`.
 
 ## Building
 

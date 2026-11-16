@@ -12,7 +12,7 @@
   original font's narrow shapes.
 - Release tools updated to the current mpc-vst-plugins (`plugin.json`, `user_files`), with the L'Cronx apostrophe
   escaped in `install.sh` / `uninstall.sh`.
-- Not yet tested on a Force (0.1.0 was).
+- Tested on an Akai Force, MPC OS 3.9.1 (2026-11-16).
 
 ## 0.1.0
 - First release: SQ8L 0.91b on the Akai Force / MPC OS 3.x (ARMv7 VST2), same engine and sound as the 64-bit port by
