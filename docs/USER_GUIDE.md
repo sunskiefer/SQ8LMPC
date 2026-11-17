@@ -42,3 +42,5 @@ buttons. The data wheel works on the selected parameter.
 
 Open `editor/SQ8LMPC-panel-editor.html`, move or resize any control or label, press **Download layout.json**, put the
 file in the repository root and run `./build.sh`. Nothing is moved automatically.
+
+Not made or endorsed by Creative Labs, who own the Ensoniq brand. Use only a ROM you are entitled to use.

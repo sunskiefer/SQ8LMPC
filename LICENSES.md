@@ -24,7 +24,7 @@ project does not provide them and does not point to a source for them.
 
 ## Trademarks
 
-Ensoniq, ESQ-1 and SQ-80 are trademarks of their respective owners. SQ8LMPC is an unofficial project. It is not affiliated with or endorsed by Siegfried Kullmann, Ensoniq or its successors, sq8l-revival, or Akai Professional.
+Ensoniq, ESQ-1 and SQ-80 are trademarks of their respective owners. SQ8LMPC is an unofficial project. It is not affiliated with or endorsed by Siegfried Kullmann, Ensoniq, Creative Labs (owner of the Ensoniq brand) or its other successors, sq8l-revival, or Akai Professional.
 
 ## Takedown
 

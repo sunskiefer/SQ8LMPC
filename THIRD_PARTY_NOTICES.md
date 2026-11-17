@@ -4,7 +4,7 @@ SQ8LMPC would not exist without the work of the people below. Full terms: [LICEN
 
 ## SQ8L, by Siegfried Kullmann
 
-SQ8L is an emulation of the Ensoniq SQ-80 synthesizer, © 2006-2008 **Siegfried Kullmann**. The rights to the original work belong to him. The sound engine, the editor behaviour, the panel artwork and the factory bank C in SQ8LMPC are his work, brought to the Akai Force with the 64-bit port below. Factory bank C is credited to **Ole Jeppesen** and Siegfried Kullmann. The SQ-80 wave ROM and the SQ-80 factory sounds (bank D) are **Ensoniq**'s and are not included since 0.2.0: the user supplies their own copies. Ensoniq, ESQ-1 and SQ-80 are trademarks of their respective owners.
+SQ8L is an emulation of the Ensoniq SQ-80 synthesizer, © 2006-2008 **Siegfried Kullmann**. The rights to the original work belong to him. The sound engine, the editor behaviour, the panel artwork and the factory bank C in SQ8LMPC are his work, brought to the Akai Force with the 64-bit port below. Factory bank C is credited to **Ole Jeppesen** and Siegfried Kullmann. The SQ-80 wave ROM and the SQ-80 factory sounds (bank D) are **Ensoniq**'s and are not included since 0.2.0: the user supplies their own copies. Ensoniq, ESQ-1 and SQ-80 are trademarks of their respective owners; Creative Labs owns the Ensoniq brand, and SQ8LMPC is not made or endorsed by Creative Labs.
 
 SQ8LMPC grants no licence on any of this. It is published free of charge, for preservation only, in good faith. If you hold rights and object, open an issue and a private contact will be arranged.
 

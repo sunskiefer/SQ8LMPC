@@ -7,7 +7,7 @@ through [mpc-vst-plugins](https://github.com/sd88me/mpc-vst-plugins)). Based on
 [sq8l-revival](https://github.com/sq8l-revival/SQ8L). Unofficial, free, non-commercial, for preservation only.**
 
 > [!IMPORTANT]
-> **This is not made by, or endorsed by, Siegfried Kullmann, Ensoniq, sq8l-revival or Akai Professional.** The sound
+> **This is not made by, or endorsed by, Siegfried Kullmann, Ensoniq, Creative Labs (who own the Ensoniq brand), sq8l-revival or Akai Professional.** The sound
 > engine, the panel artwork and the factory bank C are the work of **Siegfried Kullmann** (SQ8L, © 2006-2008). The
 > SQ-80 wave ROM and the SQ-80 factory sounds (bank D) are **Ensoniq**'s and are **not included**: you bring your own,
 > legally obtained copies (see [Bring your own ROM](#bring-your-own-rom)). This repository grants no licence on
